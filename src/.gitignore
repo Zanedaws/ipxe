@@ -2,3 +2,5 @@
 .echocheck
 TAGS*
 bin*
+doc/html
+doxygen.cfg.bak

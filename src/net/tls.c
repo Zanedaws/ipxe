@@ -21,7 +21,7 @@ FILE_LICENCE ( GPL2_OR_LATER );
 
 /**
  * @file
- *
+ * 
  * Transport Layer Security Protocol
  */
 
@@ -2034,7 +2034,7 @@ static int tls_new_finished ( struct tls_connection *tls,
 
 /**
  * Receive new Handshake record
- *
+ * \callergraph
  * @v tls		TLS connection
  * @v data		Plaintext record
  * @v len		Length of plaintext record
@@ -2126,7 +2126,7 @@ static int tls_new_handshake ( struct tls_connection *tls,
 
 /**
  * Receive new record
- *
+ * 
  * @v tls		TLS connection
  * @v type		Record type
  * @v rx_data		List of received data buffers
@@ -2804,7 +2804,7 @@ static size_t tls_cipherstream_window ( struct tls_connection *tls ) {
 
 /**
  * Receive new ciphertext
- *
+ * \callergraph
  * @v tls		TLS connection
  * @v iobuf		I/O buffer
  * @v meta		Data transfer metadat
@@ -2965,6 +2965,7 @@ static struct interface_descriptor tls_validator_desc =
 /**
  * TLS TX state machine
  *
+ * \callergraph
  * @v tls		TLS connection
  */
 static void tls_tx_step ( struct tls_connection *tls ) {
@@ -3089,7 +3090,7 @@ static struct process_descriptor tls_process_desc =
 
 /**
  * Find or create session for TLS connection
- *
+ * \callergraph
  * @v tls		TLS connection
  * @v name		Server name
  * @ret rc		Return status code
@@ -3147,7 +3148,7 @@ static int tls_session ( struct tls_connection *tls, const char *name ) {
 
 /**
  * Add TLS on an interface
- *
+ * \callergraph
  * @v xfer		Data transfer interface
  * @v name		Host name
  * @v root		Root of trust (or NULL to use default)

@@ -21,6 +21,7 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #include <usr/autoboot.h>
 
 /**
+ * \callgraph
  * Main entry point
  *
  * @ret rc		Return status code
