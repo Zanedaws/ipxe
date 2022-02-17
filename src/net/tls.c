@@ -1228,10 +1228,16 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 
 	/* Encrypt pre-master secret using server's public key */
 	memset ( &key_xchg, 0, sizeof ( key_xchg ) );
-	len = pubkey_encrypt ( pubkey, cipherspec->pubkey_ctx,
-			       &tls->pre_master_secret,
-			       sizeof ( tls->pre_master_secret ),
-			       key_xchg.encrypted_pre_master_secret );
+	if (cipherspec->suite.code == TLS_RSA_PSK_WITH_AES_256_GCM_SHA384) {
+		// concatenate tls->pre_master_secret with tls->psk_pre_shared_key and pass into pubkey_encrypt
+	}
+	else
+	{
+		len = pubkey_encrypt ( pubkey, cipherspec->pubkey_ctx,
+					&tls->pre_master_secret,
+					sizeof ( tls->pre_master_secret ),
+					key_xchg.encrypted_pre_master_secret );
+	}
 	if ( len < 0 ) {
 		rc = len;
 		DBGC ( tls, "TLS %p could not encrypt pre-master secret: %s\n",
@@ -3193,6 +3199,13 @@ int add_tls ( struct interface *xfer, const char *name,
 		      ( sizeof ( tls->pre_master_secret.random ) ) ) ) != 0 ) {
 		goto err_random;
 	}
+
+	if ( ( rc = tls_generate_random ( tls, &tls->pre_shared_key.psk,
+		      ( sizeof ( tls->pre_shared_key.psk ) ) ) ) != 0 ) {
+		goto err_random;
+	}
+	tls->pre_shared_key.pskLength =  sizeof ( tls->pre_shared_key.psk )  / sizeof (uint8_t);
+	
 	if ( ( rc = tls_session ( tls, name ) ) != 0 )
 		goto err_session;
 	list_add_tail ( &tls->list, &tls->session->conn );

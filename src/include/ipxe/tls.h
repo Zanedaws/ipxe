@@ -84,6 +84,7 @@ struct tls_header {
 #define TLS_RSA_WITH_AES_256_CBC_SHA 0x0035
 #define TLS_RSA_WITH_AES_128_CBC_SHA256 0x003c
 #define TLS_RSA_WITH_AES_256_CBC_SHA256 0x003d
+#define TLS_RSA_PSK_WITH_AES_256_GCM_SHA384 0x00ad
 
 /* TLS hash algorithm identifiers */
 #define TLS_MD5_ALGORITHM 1
@@ -217,6 +218,13 @@ struct tls_pre_master_secret {
 	uint8_t random[46];
 } __attribute__ (( packed ));
 
+struct tls_psk_pre_shared_key {
+	/** PSK length */
+	uint16_t pskLength;
+	/** Pre-shared key, can be any size between 8-63 printable ASCII chars, arbitrary size of 32 chosen for now*/
+	uint8_t psk[32];
+} __attribute__ (( packed ));
+
 /** TLS client random data */
 struct tls_client_random {
 	/** GMT Unix time */
@@ -311,6 +319,8 @@ struct tls_connection {
 	struct tls_cipherspec rx_cipherspec_pending;
 	/** Premaster secret */
 	struct tls_pre_master_secret pre_master_secret;
+	/** Preshared key */
+	struct tls_pre_shared_key pre_shared_key;
 	/** Master secret */
 	uint8_t master_secret[48];
 	/** Server random bytes */
