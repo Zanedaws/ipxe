@@ -320,7 +320,7 @@ struct tls_connection {
 	/** Premaster secret */
 	struct tls_pre_master_secret pre_master_secret;
 	/** Preshared key */
-	struct tls_pre_shared_key pre_shared_key;
+	struct tls_psk_pre_shared_key pre_shared_key;
 	/** Master secret */
 	uint8_t master_secret[48];
 	/** Server random bytes */

@@ -1228,7 +1228,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 
 	/* Encrypt pre-master secret using server's public key */
 	memset ( &key_xchg, 0, sizeof ( key_xchg ) );
-	if (cipherspec->suite.code == TLS_RSA_PSK_WITH_AES_256_GCM_SHA384) {
+	if (cipherspec->suite->code == TLS_RSA_PSK_WITH_AES_256_GCM_SHA384) {
 		// concatenate tls->pre_master_secret with tls->psk_pre_shared_key and pass into pubkey_encrypt
 	}
 	else
