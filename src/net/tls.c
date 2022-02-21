@@ -1230,7 +1230,25 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 	memset ( &key_xchg, 0, sizeof ( key_xchg ) );
 	if (cipherspec->suite->code == TLS_RSA_PSK_WITH_AES_256_GCM_SHA384) {
 		// concatenate tls->pre_master_secret with tls->psk_pre_shared_key and pass into pubkey_encrypt
-		len = 0;
+		struct {
+			uint16_t constant;
+			uint16_t version;
+			uint8_t random[46];
+			uint16_t pskLength;
+			uint8_t psk[32];
+		} __attribute__ (( packed )) psk_pre_master_secret;
+
+		psk_pre_master_secret.constant = 48; // need to check this... first two bytes? one byte? etc.
+		memset(&psk_pre_master_secret, 0, sizeof(psk_pre_master_secret));
+		psk_pre_master_secret.version = tls->pre_master_secret.version;
+		memcpy(psk_pre_master_secret.random, tls->pre_master_secret.random, sizeof(tls->pre_master_secret.random);
+		psk_pre_master_secret.pskLength = tls->pre_shared_key.pskLength;
+		memcpy(psk_pre_master_secret.psk, tls->pre_shared_key.psk, sizeof(tls->pre_shared_key.psk);
+		
+		len = pubkey_encrypt ( pubkey, cipherspec->pubkey_ctx, 
+					&psk_pre_master_secret, 
+					sizeof ( psk_pre_master_secret ), 
+					key_xchg.encrypted_pre_master_secret );
 	}
 	else
 	{

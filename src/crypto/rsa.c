@@ -332,10 +332,8 @@ static int rsa_encrypt ( void *ctx, const void *plaintext,
 	 */
 	temp = context->output0;
 	encoded = temp;
-	/* What do these lines add? - DL*/
 	encoded[0] = 0x00;
 	encoded[1] = 0x02;
-	/**/
 	if ( ( rc = get_random_nz ( &encoded[2], random_nz_len ) ) != 0 ) {
 		DBGC ( context, "RSA %p could not generate random data: %s\n",
 		       context, strerror ( rc ) );
