@@ -26,7 +26,7 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #include <byteswap.h>
 #include <ipxe/rsa.h>
 #include <ipxe/aes.h>
-#include <ipxe/sha256.h>
+#include <ipxe/sha512.h>
 #include <ipxe/tls.h>
 
 /** TLS_RSA_PSK_WITH_AES_256_GCM_SHA384 cipher suite */
