@@ -1241,9 +1241,9 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		psk_pre_master_secret.constant = 48; // need to check this... first two bytes? one byte? etc.
 		memset(&psk_pre_master_secret, 0, sizeof(psk_pre_master_secret));
 		psk_pre_master_secret.version = tls->pre_master_secret.version;
-		memcpy(psk_pre_master_secret.random, tls->pre_master_secret.random, sizeof(tls->pre_master_secret.random);
+		memcpy(psk_pre_master_secret.random, tls->pre_master_secret.random, sizeof(tls->pre_master_secret.random));
 		psk_pre_master_secret.pskLength = tls->pre_shared_key.pskLength;
-		memcpy(psk_pre_master_secret.psk, tls->pre_shared_key.psk, sizeof(tls->pre_shared_key.psk);
+		memcpy(psk_pre_master_secret.psk, tls->pre_shared_key.psk, sizeof(tls->pre_shared_key.psk));
 		
 		len = pubkey_encrypt ( pubkey, cipherspec->pubkey_ctx, 
 					&psk_pre_master_secret, 
