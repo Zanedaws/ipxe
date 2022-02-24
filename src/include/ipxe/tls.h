@@ -84,6 +84,7 @@ struct tls_header {
 #define TLS_RSA_WITH_AES_256_CBC_SHA 0x0035
 #define TLS_RSA_WITH_AES_128_CBC_SHA256 0x003c
 #define TLS_RSA_WITH_AES_256_CBC_SHA256 0x003d
+#define TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 0x009f
 
 /* TLS hash algorithm identifiers */
 #define TLS_MD5_ALGORITHM 1
