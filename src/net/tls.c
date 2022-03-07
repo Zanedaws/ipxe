@@ -2033,6 +2033,20 @@ static int tls_new_finished ( struct tls_connection *tls,
 }
 
 /**
+ * Receive new server key information record
+ *
+ * @v tls		TLS connection
+ * @v data		Plaintext record
+ * @v len		Length of plaintext record
+ * @ret rc		Return status code
+ */
+static int tls_new_server_key_exchange ( struct tls_connection *tls,
+                                         const void *data, size_t len )
+{
+    // Get server diffieHellman values used to calc key
+}
+
+/**
  * Receive new Handshake record
  *
  * @v tls		TLS connection
@@ -2099,6 +2113,9 @@ static int tls_new_handshake ( struct tls_connection *tls,
 		case TLS_FINISHED:
 			rc = tls_new_finished ( tls, payload, payload_len );
 			break;
+        case TLS_SERVER_KEY_EXCHANGE:
+            rc = tls_new_server_key_exchange ( tls, payload, payload_len);
+            break;
 		default:
 			DBGC ( tls, "TLS %p ignoring handshake type %d\n",
 			       tls, handshake->type );
@@ -2968,90 +2985,90 @@ static struct interface_descriptor tls_validator_desc =
  * @v tls		TLS connection
  */
 static void tls_tx_step ( struct tls_connection *tls ) {
-	struct tls_session *session = tls->session;
-	struct tls_connection *conn;
-	int rc;
+    struct tls_session *session = tls->session;
+    struct tls_connection *conn;
+    int rc;
 
-	/* Wait for cipherstream to become ready */
-	if ( ! xfer_window ( &tls->cipherstream ) )
-		return;
+    /* Wait for cipherstream to become ready */
+    if (!xfer_window(&tls->cipherstream))
+        return;
 
-	/* Send first pending transmission */
-	if ( tls->tx_pending & TLS_TX_CLIENT_HELLO ) {
-		/* Serialise server negotiations within a session, to
-		 * provide a consistent view of session IDs and
-		 * session tickets.
-		 */
-		list_for_each_entry ( conn, &session->conn, list ) {
-			if ( conn == tls )
-				break;
-			if ( is_pending ( &conn->server_negotiation ) )
-				return;
-		}
-		/* Record or generate session ID and associated master secret */
-		if ( session->id_len ) {
-			/* Attempt to resume an existing session */
-			memcpy ( tls->session_id, session->id,
-				 sizeof ( tls->session_id ) );
-			tls->session_id_len = session->id_len;
-			memcpy ( tls->master_secret, session->master_secret,
-				 sizeof ( tls->master_secret ) );
-		} else {
-			/* No existing session: use a random session ID */
-			assert ( sizeof ( tls->session_id ) ==
-				 sizeof ( tls->client_random ) );
-			memcpy ( tls->session_id, &tls->client_random,
-				 sizeof ( tls->session_id ) );
-			tls->session_id_len = sizeof ( tls->session_id );
-		}
-		/* Send Client Hello */
-		if ( ( rc = tls_send_client_hello ( tls ) ) != 0 ) {
-			DBGC ( tls, "TLS %p could not send Client Hello: %s\n",
-			       tls, strerror ( rc ) );
-			goto err;
-		}
-		tls->tx_pending &= ~TLS_TX_CLIENT_HELLO;
-	} else if ( tls->tx_pending & TLS_TX_CERTIFICATE ) {
-		/* Send Certificate */
-		if ( ( rc = tls_send_certificate ( tls ) ) != 0 ) {
-			DBGC ( tls, "TLS %p cold not send Certificate: %s\n",
-			       tls, strerror ( rc ) );
-			goto err;
-		}
-		tls->tx_pending &= ~TLS_TX_CERTIFICATE;
-	} else if ( tls->tx_pending & TLS_TX_CLIENT_KEY_EXCHANGE ) {
-		/* Send Client Key Exchange */
-		if ( ( rc = tls_send_client_key_exchange ( tls ) ) != 0 ) {
-			DBGC ( tls, "TLS %p could not send Client Key "
-			       "Exchange: %s\n", tls, strerror ( rc ) );
-			goto err;
-		}
-		tls->tx_pending &= ~TLS_TX_CLIENT_KEY_EXCHANGE;
-	} else if ( tls->tx_pending & TLS_TX_CERTIFICATE_VERIFY ) {
-		/* Send Certificate Verify */
-		if ( ( rc = tls_send_certificate_verify ( tls ) ) != 0 ) {
-			DBGC ( tls, "TLS %p could not send Certificate "
-			       "Verify: %s\n", tls, strerror ( rc ) );
-			goto err;
-		}
-		tls->tx_pending &= ~TLS_TX_CERTIFICATE_VERIFY;
-	} else if ( tls->tx_pending & TLS_TX_CHANGE_CIPHER ) {
-		/* Send Change Cipher, and then change the cipher in use */
-		if ( ( rc = tls_send_change_cipher ( tls ) ) != 0 ) {
-			DBGC ( tls, "TLS %p could not send Change Cipher: "
-			       "%s\n", tls, strerror ( rc ) );
-			goto err;
-		}
-		if ( ( rc = tls_change_cipher ( tls,
-						&tls->tx_cipherspec_pending,
-						&tls->tx_cipherspec )) != 0 ){
-			DBGC ( tls, "TLS %p could not activate TX cipher: "
-			       "%s\n", tls, strerror ( rc ) );
-			goto err;
-		}
-		tls->tx_seq = 0;
-		tls->tx_pending &= ~TLS_TX_CHANGE_CIPHER;
-	} else if ( tls->tx_pending & TLS_TX_FINISHED ) {
+    /* Send first pending transmission */
+    if (tls->tx_pending & TLS_TX_CLIENT_HELLO) {
+        /* Serialise server negotiations within a session, to
+         * provide a consistent view of session IDs and
+         * session tickets.
+         */
+        list_for_each_entry (conn, &session->conn, list) {
+            if (conn == tls)
+                break;
+            if (is_pending(&conn->server_negotiation))
+                return;
+        }
+        /* Record or generate session ID and associated master secret */
+        if (session->id_len) {
+            /* Attempt to resume an existing session */
+            memcpy(tls->session_id, session->id,
+                   sizeof(tls->session_id));
+            tls->session_id_len = session->id_len;
+            memcpy(tls->master_secret, session->master_secret,
+                   sizeof(tls->master_secret));
+        } else {
+            /* No existing session: use a random session ID */
+            assert (sizeof(tls->session_id) ==
+                    sizeof(tls->client_random));
+            memcpy(tls->session_id, &tls->client_random,
+                   sizeof(tls->session_id));
+            tls->session_id_len = sizeof(tls->session_id);
+        }
+        /* Send Client Hello */
+        if ((rc = tls_send_client_hello(tls)) != 0) {
+            DBGC(tls, "TLS %p could not send Client Hello: %s\n",
+                 tls, strerror(rc));
+            goto err;
+        }
+        tls->tx_pending &= ~TLS_TX_CLIENT_HELLO;
+    } else if (tls->tx_pending & TLS_TX_CERTIFICATE) {
+        /* Send Certificate */
+        if ((rc = tls_send_certificate(tls)) != 0) {
+            DBGC(tls, "TLS %p cold not send Certificate: %s\n",
+                 tls, strerror(rc));
+            goto err;
+        }
+        tls->tx_pending &= ~TLS_TX_CERTIFICATE;
+    } else if (tls->tx_pending & TLS_TX_CLIENT_KEY_EXCHANGE) {
+        /* Send Client Key Exchange */
+        if ((rc = tls_send_client_key_exchange(tls)) != 0) {
+            DBGC(tls, "TLS %p could not send Client Key "
+                      "Exchange: %s\n", tls, strerror(rc));
+            goto err;
+        }
+        tls->tx_pending &= ~TLS_TX_CLIENT_KEY_EXCHANGE;
+    } else if (tls->tx_pending & TLS_TX_CERTIFICATE_VERIFY) {
+        /* Send Certificate Verify */
+        if ((rc = tls_send_certificate_verify(tls)) != 0) {
+            DBGC(tls, "TLS %p could not send Certificate "
+                      "Verify: %s\n", tls, strerror(rc));
+            goto err;
+        }
+        tls->tx_pending &= ~TLS_TX_CERTIFICATE_VERIFY;
+    } else if (tls->tx_pending & TLS_TX_CHANGE_CIPHER) {
+        /* Send Change Cipher, and then change the cipher in use */
+        if ((rc = tls_send_change_cipher(tls)) != 0) {
+            DBGC(tls, "TLS %p could not send Change Cipher: "
+                      "%s\n", tls, strerror(rc));
+            goto err;
+        }
+        if ((rc = tls_change_cipher(tls,
+                                    &tls->tx_cipherspec_pending,
+                                    &tls->tx_cipherspec)) != 0) {
+            DBGC(tls, "TLS %p could not activate TX cipher: "
+                      "%s\n", tls, strerror(rc));
+            goto err;
+        }
+        tls->tx_seq = 0;
+        tls->tx_pending &= ~TLS_TX_CHANGE_CIPHER;
+    } else if ( tls->tx_pending & TLS_TX_FINISHED ) {
 		/* Send Finished */
 		if ( ( rc = tls_send_finished ( tls ) ) != 0 ) {
 			DBGC ( tls, "TLS %p could not send Finished: %s\n",
