@@ -2044,6 +2044,14 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
                                          const void *data, size_t len )
 {
     // Get server diffieHellman values used to calc key
+	int rc;
+	size_t remaining = len;
+
+	while ( remaining ) {
+		// parse message data
+	}
+
+	return 0;
 }
 
 /**
