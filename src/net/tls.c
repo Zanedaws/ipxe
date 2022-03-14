@@ -51,6 +51,7 @@ FILE_LICENCE ( GPL2_OR_LATER );
 #include <ipxe/job.h>
 #include <ipxe/tls.h>
 #include <config/crypto.h>
+#include <ipxe/dhe.h>
 
 /* Disambiguate the various error causes */
 #define EINVAL_CHANGE_CIPHER __einfo_error ( EINFO_EINVAL_CHANGE_CIPHER )
@@ -2045,11 +2046,29 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 {
     // Get server diffieHellman values used to calc key
 	int rc;
-	size_t remaining = len;
+	uint16_t size;
+	uint16_t total_size_used = 0;
+	struct dhe_context context;
+	struct tls_cipherspec * cipherspec = tls->tx_cipherspec_pending;
+	uint8_t * c_data = (uint8_t *) data;
 
-	while ( remaining ) {
-		// parse message data
-	}
+	memcpy(&size, c_data, 2);
+	total_size_used += 2;
+	context.prime = zalloc(size); // allocate number of bytes for prime
+	memcpy(context.prime, c_data + total_size_used, size);
+	total_size_used += size;
+
+	memcpy(&size, c_data + total_size_used, 2); // size of generator
+	total_size_used += 2;
+	context.generator = zalloc(size);
+	memcpy(context.generator, c_data + total_size_used, size);
+	total_size_used += size;
+
+	// read pubkey from data and assign
+
+	// verify signature
+
+	// after doing all steps, verify total_size_used == len
 
 	return 0;
 }
