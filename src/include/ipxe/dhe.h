@@ -60,9 +60,13 @@ struct dhe_context {
 	/** Allocated memory */
 	void *dynamic;
 	/** DHE Prime */
-    uint64_t * prime;
-    /** DHE Generator from server */
-    uint64_t * generator;
+    bigint_element_t * prime;
+	/** Number of elements in prime*/
+	unsigned int prime_size;
+	/** DHE Generator from server */
+    bigint_element_t * generator;
+	/** Number of elements in generator */
+	unsigned int generator_size;
 	/** Temporary working space for modular exponentiation */
 	void *tmp;
 };
