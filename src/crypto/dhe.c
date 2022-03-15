@@ -49,23 +49,89 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #define EINFO_EACCES_VERIFY \
 	__einfo_uniqify ( EINFO_EACCES, 0x01, "RSA signature incorrect" )
 
-static uint64_t dhe_power( uint64_t base, uint64_t power, uint64_t prime ) // might need to switch to uint32_t
+// Generate secret from data in context
+
+/**
+ * DHE does not need many of the function pointers in the pubkey_algorithm struct. This function returns 0 and nothing else.
+ * 
+ * @ret int - 0
+ */
+static int placeholder()
 {
-	return ( ( uint64_t ) pow( base, power ) ) % prime; // base ^ power, size?
+	return 0;
+}
+
+/**
+ * Verify signed digest value using RSA
+ *
+ * @v ctx		RSA context
+ * @v digest		Digest algorithm
+ * @v value		Digest value
+ * @v signature		Signature
+ * @v signature_len	Signature length
+ * @ret rc		Return status code
+ */
+static int rsa_verify ( void *ctx, struct digest_algorithm *digest,
+			const void *value, const void *signature,
+			size_t signature_len ) {
+	struct rsa_context *context = ctx;
+	void *temp;
+	void *expected;
+	void *actual;
+	int rc;
+
+	/* Sanity check */
+	if ( signature_len != context->max_len ) {
+		DBGC ( context, "RSA %p signature incorrect length (%zd "
+		       "bytes, should be %zd)\n",
+		       context, signature_len, context->max_len );
+		return -ERANGE;
+	}
+	DBGC ( context, "RSA %p verifying %s digest:\n",
+	       context, digest->name );
+	DBGC_HDA ( context, 0, value, digest->digestsize );
+	DBGC_HDA ( context, 0, signature, signature_len );
+
+	/* Decipher the signature (using the big integer input buffer
+	 * as temporary storage)
+	 */
+	temp = context->input0;
+	expected = temp;
+	rsa_cipher ( context, signature, expected );
+	DBGC ( context, "RSA %p deciphered signature:\n", context );
+	DBGC_HDA ( context, 0, expected, context->max_len );
+
+	/* Encode digest (using the big integer output buffer as
+	 * temporary storage)
+	 */
+	temp = context->output0;
+	actual = temp;
+	if ( ( rc = rsa_encode_digest ( context, digest, value, actual ) ) !=0 )
+		return rc;
+
+	/* Verify the signature */
+	if ( memcmp ( actual, expected, context->max_len ) != 0 ) {
+		DBGC ( context, "RSA %p signature verification failed\n",
+		       context );
+		return -EACCES_VERIFY;
+	}
+
+	DBGC ( context, "RSA %p signature verified successfully\n", context );
+	return 0;
 }
 
 /** RSA public-key algorithm */
 struct pubkey_algorithm dhe_algorithm = {
 	.name		= "dhe",
 	.ctxsize	= DHE_CTX_SIZE,
-	.init		= rsa_init,
-	.max_len	= rsa_max_len,
-	.encrypt	= rsa_encrypt,
-	.decrypt	= rsa_decrypt,
-	.sign		= rsa_sign,
+	.init		= placeholder,
+	.max_len	= placeholder,
+	.encrypt	= placeholder,
+	.decrypt	= placeholder,
+	.sign		= placeholder,
 	.verify		= rsa_verify,
-	.final		= rsa_final,
-	.match		= rsa_match,
+	.final		= placeholder,
+	.match		= placeholder,
 };
 
 /* Drag in objects via rsa_algorithm */

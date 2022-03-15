@@ -2052,25 +2052,40 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	struct tls_cipherspec * cipherspec = tls->tx_cipherspec_pending;
 	uint8_t * c_data = (uint8_t *) data;
 
+	// Optimize to loop later
+
 	memcpy(&size, c_data, 2);
 	total_size_used += 2;
 	context.prime = zalloc(size); // allocate number of bytes for prime
 	memcpy(context.prime, c_data + total_size_used, size);
+	context.prime_size = (size / sizeof(bigint_element_t)) + 1;
 	total_size_used += size;
 
 	memcpy(&size, c_data + total_size_used, 2); // size of generator
 	total_size_used += 2;
 	context.generator = zalloc(size);
 	memcpy(context.generator, c_data + total_size_used, size);
+	context.generator_size = (size / sizeof(bigint_element_t)) + 1;
 	total_size_used += size;
 
 	// read pubkey from data and assign
+	memcpy(&size, c_data + total_size_used, 2); // size of generator
+	total_size_used += 2;
+	context.server_pubkey = zalloc(size);
+	memcpy(context.server_pubkey, c_data + total_size_used, size);
+	context.server_pubkey_size = (size / sizeof(bigint_element_t)) + 1;
+	total_size_used += size;
 
 	// verify signature
+	uint16_t sig_size = len - total_size_used;
+	void * signature = zalloc(sig_size);
+	memcpy(signature, c_data + total_size_used, sig_size);
+	rc = pubkey_verify(/*pubkey_algorithm, context, digest, value, sig, sig_length*/);
+	// view tls_new_finshed() for insight on digest stuff
 
 	// after doing all steps, verify total_size_used == len
 
-	return 0;
+	return rc;
 }
 
 /**
@@ -2137,12 +2152,12 @@ static int tls_new_handshake ( struct tls_connection *tls,
 			rc = tls_new_server_hello_done ( tls, payload,
 							 payload_len );
 			break;
+		case TLS_SERVER_KEY_EXCHANGE:
+            rc = tls_new_server_key_exchange ( tls, payload, payload_len);
+            break;
 		case TLS_FINISHED:
 			rc = tls_new_finished ( tls, payload, payload_len );
 			break;
-        case TLS_SERVER_KEY_EXCHANGE:
-            rc = tls_new_server_key_exchange ( tls, payload, payload_len);
-            break;
 		default:
 			DBGC ( tls, "TLS %p ignoring handshake type %d\n",
 			       tls, handshake->type );
