@@ -67,10 +67,14 @@ struct dhe_context {
     bigint_element_t * generator;
 	/** Number of elements in generator */
 	unsigned int generator_size;
-    /** Server public key */
-    bigint_element_t * server_pubkey;
+    /** Server public value (g^X mod p) */
+    bigint_element_t * server_pubval;
     /** Number of elements in server pubkey */
-    unsigned int server_pubkey_size;
+    unsigned int server_pubval_size;
+	/** Client diffieHellman parameter */
+	bigint_element_t * client_dh_param;
+	/** Number of elements in client DH param */
+	unsigned int client_dh_param_size;
 	/** Temporary working space for modular exponentiation */
 	void *tmp;
 };

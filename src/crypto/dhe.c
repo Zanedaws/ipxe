@@ -61,6 +61,20 @@ static int placeholder()
 	return 0;
 }
 
+static int dhe_generate_client_value(void *ctx)
+{
+	struct dhe_context * context = ctx;
+	context->client_dh_param = /*instead of zalloc/malloc, use bigint_init*/zalloc(context->prime_size * sizeof(bigint_element_t));
+	context->client_dh_param_size = context->prime_size;
+	long int random_num = random();
+	bigint_t ( bigint_required_size ( sizeof ( random_num ) ) ) * random_bigint;
+	bigint_init(random_bigint, &random_num, sizeof(random_num));
+	bigint_t (context -> generator_size) * base = ( ( void * ) context->generator );
+	bigint_t (context -> prime_size) * prime = ( ( void * ) context->prime );
+	bigint_t (context -> client_dh_param_size) * output = ( ( void * ) context->client_dh_param );
+	bigint_mod_exp ( base, prime, random_bigint, output, context->tmp);
+}
+
 /**
  * Verify signed digest value using RSA
  *

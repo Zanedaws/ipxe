@@ -2071,9 +2071,9 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	// read pubkey from data and assign
 	memcpy(&size, c_data + total_size_used, 2); // size of generator
 	total_size_used += 2;
-	context.server_pubkey = zalloc(size);
-	memcpy(context.server_pubkey, c_data + total_size_used, size);
-	context.server_pubkey_size = (size / sizeof(bigint_element_t)) + 1;
+	context.server_pubval = zalloc(size);
+	memcpy(context.server_pubval, c_data + total_size_used, size);
+	context.server_pubval_size = (size / sizeof(bigint_element_t)) + 1;
 	total_size_used += size;
 
 	// verify signature
