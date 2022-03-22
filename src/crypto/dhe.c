@@ -75,63 +75,18 @@ static int dhe_generate_client_value(void *ctx)
 	bigint_mod_exp ( base, prime, random_bigint, output, context->tmp);
 }
 
-/**
- * Verify signed digest value using RSA
- *
- * @v ctx		RSA context
- * @v digest		Digest algorithm
- * @v value		Digest value
- * @v signature		Signature
- * @v signature_len	Signature length
- * @ret rc		Return status code
- */
-static int rsa_verify ( void *ctx, struct digest_algorithm *digest,
-			const void *value, const void *signature,
-			size_t signature_len ) {
-	struct rsa_context *context = ctx;
-	void *temp;
-	void *expected;
-	void *actual;
-	int rc;
+static int dhe_max_length(void * ctx)
+{
+	struct dhe_context * context = ctx;
 
-	/* Sanity check */
-	if ( signature_len != context->max_len ) {
-		DBGC ( context, "RSA %p signature incorrect length (%zd "
-		       "bytes, should be %zd)\n",
-		       context, signature_len, context->max_len );
-		return -ERANGE;
-	}
-	DBGC ( context, "RSA %p verifying %s digest:\n",
-	       context, digest->name );
-	DBGC_HDA ( context, 0, value, digest->digestsize );
-	DBGC_HDA ( context, 0, signature, signature_len );
+	return context->max_len;
+}
 
-	/* Decipher the signature (using the big integer input buffer
-	 * as temporary storage)
-	 */
-	temp = context->input0;
-	expected = temp;
-	rsa_cipher ( context, signature, expected );
-	DBGC ( context, "RSA %p deciphered signature:\n", context );
-	DBGC_HDA ( context, 0, expected, context->max_len );
+static int dhe_client_key_exchange_message( void *ctx, const void * client_pubval,
+			 size_t plaintext_len, void *ciphertext )
+{
+	struct dhe_context * context = ctx;
 
-	/* Encode digest (using the big integer output buffer as
-	 * temporary storage)
-	 */
-	temp = context->output0;
-	actual = temp;
-	if ( ( rc = rsa_encode_digest ( context, digest, value, actual ) ) !=0 )
-		return rc;
-
-	/* Verify the signature */
-	if ( memcmp ( actual, expected, context->max_len ) != 0 ) {
-		DBGC ( context, "RSA %p signature verification failed\n",
-		       context );
-		return -EACCES_VERIFY;
-	}
-
-	DBGC ( context, "RSA %p signature verified successfully\n", context );
-	return 0;
 }
 
 /** RSA public-key algorithm */
@@ -139,11 +94,11 @@ struct pubkey_algorithm dhe_algorithm = {
 	.name		= "dhe",
 	.ctxsize	= DHE_CTX_SIZE,
 	.init		= placeholder,
-	.max_len	= placeholder,
+	.max_len	= dhe_max_length,
 	.encrypt	= placeholder,
 	.decrypt	= placeholder,
 	.sign		= placeholder,
-	.verify		= rsa_verify,
+	.verify		= placeholder,
 	.final		= placeholder,
 	.match		= placeholder,
 };

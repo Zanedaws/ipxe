@@ -77,6 +77,8 @@ struct dhe_context {
 	unsigned int client_dh_param_size;
 	/** Temporary working space for modular exponentiation */
 	void *tmp;
+	/** Max length any value in context can have */
+	size_t max_len;
 };
 
 /** RSA context size */

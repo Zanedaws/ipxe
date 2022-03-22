@@ -52,6 +52,7 @@ FILE_LICENCE ( GPL2_OR_LATER );
 #include <ipxe/tls.h>
 #include <config/crypto.h>
 #include <ipxe/dhe.h>
+#include <ipxe/bigint.h>
 
 /* Disambiguate the various error causes */
 #define EINVAL_CHANGE_CIPHER __einfo_error ( EINFO_EINVAL_CHANGE_CIPHER )
@@ -1219,38 +1220,55 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 	struct tls_cipherspec *cipherspec = &tls->tx_cipherspec_pending;
 	struct pubkey_algorithm *pubkey = cipherspec->suite->pubkey;
 	size_t max_len = pubkey_max_len ( pubkey, cipherspec->pubkey_ctx );
-	struct {
-		uint32_t type_length;
-		uint16_t encrypted_pre_master_secret_len;
-		uint8_t encrypted_pre_master_secret[max_len];
-	} __attribute__ (( packed )) key_xchg;
-	size_t unused;
-	int len;
-	int rc;
+	if (cipherspec->suite->pubkey->name == "dhe")
+	{
+		// diffieHellman Message
+		struct dhe_context * context = cipherspec->pubkey_ctx;
+		struct {
+			uint16_t client_pubval_bytes; // bytes of client_pubval to send
+			uint8_t client_pubval[max_len];
+		} __attribute__ (( packed )) key_xchg;
 
-	/* Encrypt pre-master secret using server's public key */
-	memset ( &key_xchg, 0, sizeof ( key_xchg ) );
-	len = pubkey_encrypt ( pubkey, cipherspec->pubkey_ctx,
-			       &tls->pre_master_secret,
-			       sizeof ( tls->pre_master_secret ),
-			       key_xchg.encrypted_pre_master_secret );
-	if ( len < 0 ) {
-		rc = len;
-		DBGC ( tls, "TLS %p could not encrypt pre-master secret: %s\n",
-		       tls, strerror ( rc ) );
-		return rc;
+		memset ( &key_xchg, 0, sizeof ( key_xchg ) );
+		key_xchg.client_pubval_bytes = sizeof ( client_pubval );
+		bigint_done(context->client_dh_param, key_xchg.client_pubval, max_len);
+		
 	}
-	unused = ( max_len - len );
-	key_xchg.type_length =
-		( cpu_to_le32 ( TLS_CLIENT_KEY_EXCHANGE ) |
-		  htonl ( sizeof ( key_xchg ) -
-			  sizeof ( key_xchg.type_length ) - unused ) );
-	key_xchg.encrypted_pre_master_secret_len =
-		htons ( sizeof ( key_xchg.encrypted_pre_master_secret ) -
-			unused );
+	else
+	{
+		struct {
+			uint32_t type_length;
+			uint16_t encrypted_pre_master_secret_len;
+			uint8_t encrypted_pre_master_secret[max_len];
+		} __attribute__ (( packed )) key_xchg;
+		size_t unused;
+		int len;
+		int rc;
 
-	return tls_send_handshake ( tls, &key_xchg,
-				    ( sizeof ( key_xchg ) - unused ) );
+		/* Encrypt pre-master secret using server's public key */
+		memset ( &key_xchg, 0, sizeof ( key_xchg ) );
+		len = pubkey_encrypt ( pubkey, cipherspec->pubkey_ctx,
+					&tls->pre_master_secret,
+					sizeof ( tls->pre_master_secret ),
+					key_xchg.encrypted_pre_master_secret );
+		if ( len < 0 ) {
+			rc = len;
+			DBGC ( tls, "TLS %p could not encrypt pre-master secret: %s\n",
+				tls, strerror ( rc ) );
+			return rc;
+		}
+		unused = ( max_len - len );
+		key_xchg.type_length =
+			( cpu_to_le32 ( TLS_CLIENT_KEY_EXCHANGE ) |
+			htonl ( sizeof ( key_xchg ) -
+				sizeof ( key_xchg.type_length ) - unused ) );
+		key_xchg.encrypted_pre_master_secret_len =
+			htons ( sizeof ( key_xchg.encrypted_pre_master_secret ) -
+				unused );
+
+		return tls_send_handshake ( tls, &key_xchg,
+						( sizeof ( key_xchg ) - unused ) );
+	}
 }
 
 /**
