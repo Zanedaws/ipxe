@@ -1215,6 +1215,7 @@ static int tls_send_certificate ( struct tls_connection *tls ) {
  * @ret rc		Return status code
  */
 static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
+	// This message sets the premaster secret and contains the client diffie hellman public value
 	struct tls_cipherspec *cipherspec = &tls->tx_cipherspec_pending;
 	struct pubkey_algorithm *pubkey = cipherspec->suite->pubkey;
 	size_t max_len = pubkey_max_len ( pubkey, cipherspec->pubkey_ctx );
@@ -2051,36 +2052,40 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	struct dhe_context context;
 	struct tls_cipherspec * cipherspec = tls->tx_cipherspec_pending;
 	uint8_t * c_data = (uint8_t *) data;
-
 	// Optimize to loop later
 
 	memcpy(&size, c_data, 2);
 	total_size_used += 2;
-	context.prime = zalloc(size); // allocate number of bytes for prime
-	memcpy(context.prime, c_data + total_size_used, size);
-	context.prime_size = (size / sizeof(bigint_element_t)) + 1;
+	context.prime = bigint_t(bigint_required_size(size));
+	bigint_init(context.prime, c_data + total_size_used, size);
+	context.prime_size = bigint_size(context.prime);
 	total_size_used += size;
 
 	memcpy(&size, c_data + total_size_used, 2); // size of generator
 	total_size_used += 2;
-	context.generator = zalloc(size);
-	memcpy(context.generator, c_data + total_size_used, size);
-	context.generator_size = (size / sizeof(bigint_element_t)) + 1;
+	context.generator = bigint_t(bigint_required_size(size));
+	bigint_init(context.generator, c_data + total_size_used, size);
+	context.generator_size = bigint_size(context.generator);
 	total_size_used += size;
 
-	// read pubkey from data and assign
+	// read pubval from data and assign
 	memcpy(&size, c_data + total_size_used, 2); // size of generator
 	total_size_used += 2;
-	context.server_pubval = zalloc(size);
-	memcpy(context.server_pubval, c_data + total_size_used, size);
-	context.server_pubval_size = (size / sizeof(bigint_element_t)) + 1;
+	context.server_pubval = bigint_t(bigint_required_size(size));
+	bigint_init(context.server_pubval, c_data + total_size_used, size);
+	context.server_pubval_size = bigint_size(context.server_pubval);
 	total_size_used += size;
 
-	// verify signature
+	// verify signature, must verify for security against man-in-the-middle
+	uint16_t signature_header;
+	memcpy(&signature_header, c_data + total_size_used, 2); // how to parse sig header/
+	total_size_used += 2;
+	memcpy(&size, c_data + total_size_used, 2); // size of sig
+	total_size_used += 2;
 	uint16_t sig_size = len - total_size_used;
-	void * signature = zalloc(sig_size);
-	memcpy(signature, c_data + total_size_used, sig_size);
-	rc = pubkey_verify(/*pubkey_algorithm, context, digest, value, sig, sig_length*/);
+	//void * signature = zalloc(sig_size);
+	//memcpy(signature, c_data + total_size_used, sig_size);
+	//rc = pubkey_verify(/*pubkey_algorithm, context, digest, value, sig, sig_length*/);
 	// view tls_new_finshed() for insight on digest stuff
 
 	// after doing all steps, verify total_size_used == len
