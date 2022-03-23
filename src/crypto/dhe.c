@@ -82,13 +82,6 @@ static int dhe_max_length(void * ctx)
 	return context->max_len;
 }
 
-static int dhe_client_key_exchange_message( void *ctx, const void * client_pubval,
-			 size_t plaintext_len, void *ciphertext )
-{
-	struct dhe_context * context = ctx;
-
-}
-
 /** RSA public-key algorithm */
 struct pubkey_algorithm dhe_algorithm = {
 	.name		= "dhe",

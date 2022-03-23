@@ -1225,13 +1225,24 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		// diffieHellman Message
 		struct dhe_context * context = cipherspec->pubkey_ctx;
 		struct {
+			uint32_t type_length;
 			uint16_t client_pubval_bytes; // bytes of client_pubval to send
 			uint8_t client_pubval[max_len];
 		} __attribute__ (( packed )) key_xchg;
 
+		// How to calc premaster secret?
+
 		memset ( &key_xchg, 0, sizeof ( key_xchg ) );
 		key_xchg.client_pubval_bytes = sizeof ( client_pubval );
 		bigint_done(context->client_dh_param, key_xchg.client_pubval, max_len);
+
+		key_xchg.type_length =
+			( cpu_to_le32 ( TLS_CLIENT_KEY_EXCHANGE ) |
+			htonl ( sizeof ( key_xchg ) -
+				sizeof ( key_xchg.type_length ) ) );
+
+		return tls_send_handshake ( tls, &key_xchg,
+						( sizeof ( key_xchg ) ) );
 		
 	}
 	else
