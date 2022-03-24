@@ -73,6 +73,10 @@ static int dhe_generate_client_value(void *ctx)
 	bigint_t (context -> prime_size) * prime = ( ( void * ) context->prime );
 	bigint_t (context -> client_dh_param_size) * output = ( ( void * ) context->client_dh_param );
 	bigint_mod_exp ( base, prime, random_bigint, output, context->tmp);
+	bigint_t (context -> server_pubval_size) * server_pubval = ( (void *) context->server_pubval);
+	bigint_t (context -> prime_size) * premaster_secret_output = context -> premaster_secret;
+	bigint_mod_multiply( output, server_pubval, prime, premaster_secret_output, context->tmp);
+	context->premaster_secret = premaster_secret_output;
 }
 
 static int dhe_max_length(void * ctx)

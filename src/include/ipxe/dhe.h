@@ -79,6 +79,7 @@ struct dhe_context {
 	void *tmp;
 	/** Max length any value in context can have */
 	size_t max_len;
+	void * premaster_secret;
 };
 
 /** RSA context size */

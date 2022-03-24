@@ -1230,7 +1230,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 			uint8_t client_pubval[max_len];
 		} __attribute__ (( packed )) key_xchg;
 
-		// How to calc premaster secret?
+		// How to calc premaster secret? - calc'ed in dhe.c when client val is generated
 
 		memset ( &key_xchg, 0, sizeof ( key_xchg ) );
 		key_xchg.client_pubval_bytes = sizeof ( client_pubval );
@@ -2112,6 +2112,8 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	memcpy(&size, c_data + total_size_used, 2); // size of sig
 	total_size_used += 2;
 	uint16_t sig_size = len - total_size_used;
+
+	cipherspec->pubkey_ctx = &context;
 	//void * signature = zalloc(sig_size);
 	//memcpy(signature, c_data + total_size_used, sig_size);
 	//rc = pubkey_verify(/*pubkey_algorithm, context, digest, value, sig, sig_length*/);
