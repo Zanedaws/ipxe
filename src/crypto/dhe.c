@@ -61,7 +61,7 @@ static int placeholder()
 	return 0;
 }
 
-static int dhe_generate_client_value(void *ctx)
+int dhe_generate_client_value(void *ctx)
 {
 	struct dhe_context * context = ctx;
 	context->client_dh_param = /*instead of zalloc/malloc, use bigint_init*/zalloc(context->prime_size * sizeof(bigint_element_t));
@@ -73,6 +73,7 @@ static int dhe_generate_client_value(void *ctx)
 	bigint_t (context -> prime_size) * prime = ( ( void * ) context->prime );
 	bigint_t (context -> client_dh_param_size) * output = ( ( void * ) context->client_dh_param );
 	bigint_mod_exp ( base, prime, random_bigint, output, context->tmp);
+	context->client_dh_param = output;
 	bigint_t (context -> server_pubval_size) * server_pubval = ( (void *) context->server_pubval);
 	bigint_t (context -> prime_size) * premaster_secret_output = context -> premaster_secret;
 	bigint_mod_multiply( output, server_pubval, prime, premaster_secret_output, context->tmp);
@@ -92,7 +93,7 @@ struct pubkey_algorithm dhe_algorithm = {
 	.ctxsize	= DHE_CTX_SIZE,
 	.init		= placeholder,
 	.max_len	= dhe_max_length,
-	.encrypt	= placeholder,
+	.encrypt	= dhe_generate_client_value,
 	.decrypt	= placeholder,
 	.sign		= placeholder,
 	.verify		= placeholder,

@@ -218,6 +218,11 @@ struct tls_pre_master_secret {
 	uint8_t random[46];
 } __attribute__ (( packed ));
 
+struct tls_dhe_pre_master_secret {
+	uint16_t version;
+	uint8_t pre_master_secret[256];
+} __attribute__ (( packed ));
+
 /** TLS client random data */
 struct tls_client_random {
 	/** GMT Unix time */
@@ -312,8 +317,10 @@ struct tls_connection {
 	struct tls_cipherspec rx_cipherspec_pending;
 	/** Premaster secret */
 	struct tls_pre_master_secret pre_master_secret;
+	struct tls_dhe_pre_master_secret dhe_pre_master_secret;
 	/** Master secret */
 	uint8_t master_secret[48];
+	uint8_t dhe_master_secret[256]; // size of dhe_secret
 	/** Server random bytes */
 	uint8_t server_random[32];
 	/** Client random bytes */
@@ -366,6 +373,7 @@ struct tls_connection {
 	struct io_buffer rx_header_iobuf;
 	/** List of received data buffers */
 	struct list_head rx_data;
+	bool is_dhe;
 };
 
 /** RX I/O buffer size

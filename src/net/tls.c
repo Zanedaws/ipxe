@@ -637,12 +637,25 @@ static void tls_generate_master_secret ( struct tls_connection *tls ) {
 	DBGC ( tls, "TLS %p server random bytes:\n", tls );
 	DBGC_HD ( tls, &tls->server_random, sizeof ( tls->server_random ) );
 
-	tls_prf_label ( tls, &tls->pre_master_secret,
+	if(tls->is_dhe)
+	{
+		tls_prf_label ( tls, &tls->dhe_pre_master_secret,
+			sizeof ( tls->pre_master_secret ), 
+			&tls->dhe_master_secret, sizeof ( tls->dhe_master_secret ),
+			"master_secret", 
+			&tls->client_random, sizeof ( tls->client_random ), 
+			&tls->server_random, sizeof ( tls->server_random ) );
+	}
+	else
+	{
+		tls_prf_label ( tls, &tls->pre_master_secret,
 			sizeof ( tls->pre_master_secret ),
 			&tls->master_secret, sizeof ( tls->master_secret ),
 			"master secret",
 			&tls->client_random, sizeof ( tls->client_random ),
 			&tls->server_random, sizeof ( tls->server_random ) );
+	}
+	
 
 	DBGC ( tls, "TLS %p generated master secret:\n", tls );
 	DBGC_HD ( tls, &tls->master_secret, sizeof ( tls->master_secret ) );
@@ -1220,6 +1233,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 	struct tls_cipherspec *cipherspec = &tls->tx_cipherspec_pending;
 	struct pubkey_algorithm *pubkey = cipherspec->suite->pubkey;
 	size_t max_len = pubkey_max_len ( pubkey, cipherspec->pubkey_ctx );
+	int rc;
 	if (cipherspec->suite->pubkey->name == "dhe")
 	{
 		// diffieHellman Message
@@ -1231,10 +1245,12 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		} __attribute__ (( packed )) key_xchg;
 
 		// How to calc premaster secret? - calc'ed in dhe.c when client val is generated
+		rc = dhe_generate_client_value(context);
+		tls->dhe_pre_master_secret.pre_master_secret = context->premaster_secret;
 
 		memset ( &key_xchg, 0, sizeof ( key_xchg ) );
-		key_xchg.client_pubval_bytes = sizeof ( client_pubval );
-		bigint_done(context->client_dh_param, key_xchg.client_pubval, max_len);
+		key_xchg.client_pubval_bytes = sizeof ( key_xchg.client_pubval );
+		bigint_done(context->client_dh_param, key_xchg.client_pubval, max_len); // may read past given size, max length
 
 		key_xchg.type_length =
 			( cpu_to_le32 ( TLS_CLIENT_KEY_EXCHANGE ) |
@@ -2106,6 +2122,7 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	total_size_used += size;
 
 	// verify signature, must verify for security against man-in-the-middle
+	// signature is RSA-PSS, hash is SHA-256
 	uint16_t signature_header;
 	memcpy(&signature_header, c_data + total_size_used, 2); // how to parse sig header/
 	total_size_used += 2;
@@ -3284,7 +3301,8 @@ int add_tls ( struct interface *xfer, const char *name,
 		goto err_random;
 	}
 	tls->pre_master_secret.version = htons ( tls->version );
-	if ( ( rc = tls_generate_random ( tls, &tls->pre_master_secret.random,
+	tls->dhe_pre_master_secret.version = htons ( tls->version );
+	if ( ( rc = tls_generate_random ( tls, tls->pre_master_secret.random,
 		      ( sizeof ( tls->pre_master_secret.random ) ) ) ) != 0 ) {
 		goto err_random;
 	}

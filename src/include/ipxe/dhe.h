@@ -48,6 +48,8 @@ struct rsa_digestinfo_prefix {
 	size_t len;
 };
 
+int dhe_generate_client_value(void *ctx);
+
 /** RSA digestInfo prefix table */
 #define RSA_DIGESTINFO_PREFIXES \
 	__table ( struct rsa_digestinfo_prefix, "rsa_digestinfo_prefixes" )
