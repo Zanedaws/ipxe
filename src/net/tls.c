@@ -1499,6 +1499,10 @@ static int tls_new_hello_request ( struct tls_connection *tls,
  * @v data		Plaintext handshake record
  * @v len		Length of plaintext handshake record
  * @ret rc		Return status code
+ *
+ *
+ * Internal variable hello_b is what the desired cipher_suite is stored in
+ *
  */
 static int tls_new_server_hello ( struct tls_connection *tls,
 				  const void *data, size_t len ) {

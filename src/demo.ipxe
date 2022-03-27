@@ -1,0 +1,5 @@
+#!ipxe
+
+dhcp
+
+chain https://localhost:44330/hello.ipxe
