@@ -125,9 +125,9 @@ REQUIRE_OBJECT ( rsa_aes_cbc_sha1 );
 REQUIRE_OBJECT ( rsa_aes_cbc_sha256 );
 #endif
 
-/*
-#if defined ( CRYPTO_PUBKEY_RSA ) && defined ( CRYPTO_CIPHER_AES_GCM ) && \
+
+#if defined ( CRYPTO_PUBKEY_DHE ) && defined ( CRYPTO_CIPHER_AES_GCM ) && \
     defined ( CRYPTO_DIGEST_SHA384 )
-REQUIRE_OBJECT ( rsa_aes_gcm_sha384 );
+REQUIRE_OBJECT ( dhe_rsa_aes256_gcm_sha384 );
 #endif
-*/
+

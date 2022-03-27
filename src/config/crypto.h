@@ -15,11 +15,14 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 /** RSA public-key algorithm */
 #define CRYPTO_PUBKEY_RSA
 
+/** DHE public-key algorithm */
+#define CRYPTO_PUBKEY_DHE
+
 /** AES-CBC block cipher */
 #define CRYPTO_CIPHER_AES_CBC
 
 /* AES-GCM cipher */
-//#define CRYPTO_CIPHER_AES_GCM
+#define CRYPTO_CIPHER_AES_GCM
 
 /** MD4 digest algorithm */
 //#define CRYPTO_DIGEST_MD4
