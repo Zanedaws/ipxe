@@ -373,7 +373,7 @@ struct tls_connection {
 	struct io_buffer rx_header_iobuf;
 	/** List of received data buffers */
 	struct list_head rx_data;
-	bool is_dhe;
+	uint8_t is_dhe;
 };
 
 /** RX I/O buffer size

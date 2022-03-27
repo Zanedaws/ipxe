@@ -1245,12 +1245,15 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		} __attribute__ (( packed )) key_xchg;
 
 		// How to calc premaster secret? - calc'ed in dhe.c when client val is generated
-		rc = dhe_generate_client_value(context);
-		tls->dhe_pre_master_secret.pre_master_secret = context->premaster_secret;
+		if ((rc = dhe_generate_client_value(context)) != 0)
+			return rc;
 
+		memcpy(tls->dhe_pre_master_secret.pre_master_secret, context->premaster_secret, 256);
+		
 		memset ( &key_xchg, 0, sizeof ( key_xchg ) );
 		key_xchg.client_pubval_bytes = sizeof ( key_xchg.client_pubval );
-		bigint_done(context->client_dh_param, key_xchg.client_pubval, max_len); // may read past given size, max length
+		bigint_t ( context->prime_size ) *output = ( ( void * ) context->client_dh_param );
+		bigint_done(output, key_xchg.client_pubval, max_len); // may read past given size, max length
 
 		key_xchg.type_length =
 			( cpu_to_le32 ( TLS_CLIENT_KEY_EXCHANGE ) |
@@ -2091,34 +2094,43 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
                                          const void *data, size_t len )
 {
     // Get server diffieHellman values used to calc key
-	int rc;
+	int rc = 0;
 	uint16_t size;
 	uint16_t total_size_used = 0;
-	struct dhe_context context;
-	struct tls_cipherspec * cipherspec = tls->tx_cipherspec_pending;
+	struct tls_cipherspec * cipherspec = &tls->tx_cipherspec_pending; // pending or not
+	struct dhe_context * context = cipherspec->pubkey_ctx;
 	uint8_t * c_data = (uint8_t *) data;
 	// Optimize to loop later
 
 	memcpy(&size, c_data, 2);
 	total_size_used += 2;
-	context.prime = bigint_t(bigint_required_size(size));
-	bigint_init(context.prime, c_data + total_size_used, size);
-	context.prime_size = bigint_size(context.prime);
+
+	bigint_init ( ( ( bigint_t ( context->prime_size ) * ) context->prime ),
+		      c_data + total_size_used, size );
+
+	//bigint_t ( context->prime_size ) *output = ( ( void * ) context->prime );
+	//context.prime = bigint_t(bigint_required_size(size));
+	//bigint_init(output, c_data + total_size_used, size);
+	//context->prime = output;
+	//context.prime_size = bigint_size(context.prime);
 	total_size_used += size;
 
 	memcpy(&size, c_data + total_size_used, 2); // size of generator
 	total_size_used += 2;
-	context.generator = bigint_t(bigint_required_size(size));
-	bigint_init(context.generator, c_data + total_size_used, size);
-	context.generator_size = bigint_size(context.generator);
+	//context.generator = bigint_t(bigint_required_size(size));
+	bigint_init ( ( ( bigint_t ( context->prime_size ) * ) context->generator ),
+		      c_data + total_size_used, size );
+	//bigint_init(context->generator, c_data + total_size_used, size);
 	total_size_used += size;
 
 	// read pubval from data and assign
 	memcpy(&size, c_data + total_size_used, 2); // size of generator
 	total_size_used += 2;
-	context.server_pubval = bigint_t(bigint_required_size(size));
-	bigint_init(context.server_pubval, c_data + total_size_used, size);
-	context.server_pubval_size = bigint_size(context.server_pubval);
+	//context.server_pubval = bigint_t(bigint_required_size(size));
+	bigint_init ( ( ( bigint_t ( context->prime_size ) * ) context->server_pubval ),
+		      c_data + total_size_used, size );
+	//bigint_init(context->server_pubval, c_data + total_size_used, size);
+	//context.server_pubval_size = bigint_size(context.server_pubval);
 	total_size_used += size;
 
 	// verify signature, must verify for security against man-in-the-middle
@@ -2130,7 +2142,12 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	total_size_used += 2;
 	uint16_t sig_size = len - total_size_used;
 
-	cipherspec->pubkey_ctx = &context;
+	if (sig_size == 0)
+	{
+		// no sig
+		return -1;
+	}
+
 	//void * signature = zalloc(sig_size);
 	//memcpy(signature, c_data + total_size_used, sig_size);
 	//rc = pubkey_verify(/*pubkey_algorithm, context, digest, value, sig, sig_length*/);

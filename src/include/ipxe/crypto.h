@@ -12,6 +12,8 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #include <stdint.h>
 #include <stddef.h>
 
+#define DHE_PRIME_LENGTH 256
+
 /** A message digest algorithm */
 struct digest_algorithm {
 	/** Algorithm name */
