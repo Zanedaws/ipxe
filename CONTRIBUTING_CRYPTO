@@ -1,0 +1,82 @@
+This document provides contributing guidelines specifically for cryptographic
+work which includes modification of existing cipher suites, addition of
+new cipher suites and other security-based measures. For further reading
+of this document, assume "contributions" refers to only cryptographic
+contributions and not other, more general, contributions.
+
+Generally, almost all contributions made by a developer will be in the
+crypto module, which can be found under /src/crypto. Within the crypto
+module, a developer will find a list of .c files and a subdirectory
+called mishmash (/src/crypto/mishmash). The mishmash subdirectory holds
+all of the structure implemenations relating to the cryptographic algorithms 
+used. For example, the "rsa_aes_cbc_sha256.c" file (/src/crypto/mishmash/
+rsa_aes_cbc_sha256.c) contains 
+
+    /** TLS_RSA_WITH_AES_128_CBC_SHA256 cipher suite */
+    struct tls_cipher_suite tls_rsa_with_aes_128_cbc_sha256 __tls_cipher_suite(01)={
+        .code = htons ( TLS_RSA_WITH_AES_128_CBC_SHA256 ),
+        .key_len = ( 128 / 8 ),
+        .pubkey = &rsa_algorithm,
+        .cipher = &aes_cbc_algorithm,
+        .digest = &sha256_algorithm,
+    };
+
+and
+
+    /** TLS_RSA_WITH_AES_256_CBC_SHA256 cipher suite */
+    struct tls_cipher_suite tls_rsa_with_aes_256_cbc_sha256 __tls_cipher_suite(02)={
+        .code = htons ( TLS_RSA_WITH_AES_256_CBC_SHA256 ),
+        .key_len = ( 256 / 8 ),
+        .pubkey = &rsa_algorithm,
+        .cipher = &aes_cbc_algorithm,
+        .digest = &sha256_algorithm,
+    };
+
+with not much else except for the included headers and a license. The 
+addreses of the algorithm structures passes to the overall structure are 
+further defined in their own file in the crypto module. For example, the 
+"aes_cbc_algorithm" is further defined in /src/crypto/aes.c and 
+/src/crypto/cbc.c. When a new header file is needed, look to add the file
+in the /src/include directory, most likely within the /src/include/ipxe 
+subdirectory. 
+
+Most of the work done within the crypto module passes objects that contain 
+all of the necessary data and functions to the src/net/tls.c file, where 
+all of the TLS communications are handled. All of the crypto structs
+involved with network communications are held in a tls_connection struct
+and abstracted away, so many different cipher suites can be used for
+communication. Because of this structure, the control flow of the program
+only ever indirectly flows through the crypto module, where the main
+execution of the files in the crypto module takes place in the net module
+(/src/net).
+
+When developing, an IDE with a "search all files" functionality (equivalent 
+to Ctrl+Shift+F on VSCode) will be extrememly useful in quickly navigating 
+the codebase and looking for what piece of information is needed, especially 
+since the pointers in structs in combination with inline functions and 
+macros do not play well with the standard Ctrl + Left Click of most IDEs.
+
+First, visit
+
+    https://ipxe.org/
+
+to view a summary of what iPXE is and a quick start guide for it. This site
+will have documentation concerning the usage of iPXE, as well as a FAQ and
+contact information. When looking for more documentation concerning development, 
+the main place will be in the codebase at the piece of code under test. 
+Outside documentation can be found at 
+
+    https://dox.ipxe.org/index.html
+
+but will direct you back to the codebase relatively quickly.
+
+To setup and start developing, fork the repository from the main iPXE branch at
+
+    https://github.com/ipxe/ipxe
+
+When integrating with the main codebase, follow the standard pull request procedure.
+The code under review will need to be tested and have automatic tests located in
+the /src/tests module.
+
+In general, iPXE files are licensed under GPL, but see the COPYING files at the top
+of the repository for more information regarding licensing.
