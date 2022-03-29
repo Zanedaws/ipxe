@@ -1,0 +1,70 @@
+Certificate:
+    Data:
+        Version: 1 (0x0)
+        Serial Number: 2 (0x2)
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: C=US, ST=Indiana, L=Avon, O=Purdue, OU=Student, CN=root/emailAddress=dawson50@purdue.edu
+        Validity
+            Not Before: Mar  2 20:57:04 2022 GMT
+            Not After : May 31 20:57:04 2022 GMT
+        Subject: C=US, ST=Indinaa, L=Avon, O=Purude, OU=STUEN, CN=client/emailAddress=z
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                RSA Public-Key: (2048 bit)
+                Modulus:
+                    00:d9:22:60:8d:11:dc:4c:be:fb:b3:92:9f:f7:a0:
+                    4e:2d:ca:8b:25:e4:f2:6e:67:09:dc:2c:78:77:9b:
+                    06:4b:b2:42:aa:32:bc:de:92:5f:ab:63:af:5a:51:
+                    27:f7:a8:d6:0b:fa:62:43:f2:a9:9d:b1:0b:d6:40:
+                    a4:aa:c3:6d:17:b4:8a:b4:be:10:96:19:91:3d:e8:
+                    af:cf:f2:72:56:64:a3:9c:11:40:11:25:8e:fd:ad:
+                    af:f2:3e:89:ef:f6:7d:b8:81:c0:d9:af:bc:c3:61:
+                    95:ea:47:16:7b:c0:7e:e7:56:23:3e:a3:b8:82:72:
+                    1b:af:a6:3f:8b:38:2d:6b:47:3d:39:15:b5:3e:fc:
+                    49:a2:59:4f:43:42:57:91:fe:7f:aa:49:42:fd:0d:
+                    d2:6d:46:ce:94:48:b8:36:3e:e1:4b:b4:fd:88:d4:
+                    8f:71:cf:2a:9f:56:64:30:9a:0d:2b:76:71:0f:95:
+                    df:02:74:c9:15:b8:c1:27:ae:78:20:b8:f1:18:a4:
+                    a1:15:e7:f7:02:a6:17:a9:45:2f:3b:da:ed:1b:e4:
+                    b2:2f:d5:e1:7d:53:e8:af:ae:34:21:75:d3:52:11:
+                    8c:51:06:68:a4:65:76:58:a4:13:35:e5:d4:67:2f:
+                    86:9d:ac:98:70:ad:e1:a0:d4:dd:24:f1:0d:85:eb:
+                    e3:e1
+                Exponent: 65537 (0x10001)
+    Signature Algorithm: sha256WithRSAEncryption
+         89:2a:73:73:34:0f:2f:bf:9d:54:cb:45:40:6e:60:ce:0f:2e:
+         fa:55:18:3d:c1:58:b0:26:1c:1f:04:4c:3b:a5:78:33:83:3c:
+         11:5e:9b:92:68:f8:2f:2e:07:4e:01:c4:c1:76:dc:b3:ff:8c:
+         0f:87:63:ef:4e:77:74:04:b1:45:ae:52:25:a5:1b:8b:91:08:
+         87:7f:49:ce:d4:36:6c:b6:55:11:46:57:d1:81:c2:43:40:9c:
+         6e:ce:3a:f1:8c:1e:0f:89:65:e9:99:4c:e8:96:74:ae:25:a0:
+         cc:ec:bc:84:fa:94:cb:ee:03:b2:fb:e9:61:c8:9e:de:65:fd:
+         7c:b4:7e:63:13:f6:35:66:91:43:db:46:ab:85:fa:a0:f7:81:
+         cb:ff:cc:31:1b:37:b8:46:cf:8a:b2:16:30:1e:aa:96:d1:d8:
+         3e:16:8f:dc:8d:f9:45:78:29:38:5b:67:66:62:26:3e:5d:52:
+         05:85:32:0c:e5:3e:f1:4a:df:d4:96:ca:c8:b7:a9:97:2d:13:
+         bb:68:27:27:40:a4:ab:16:a9:ab:e7:54:f7:17:0f:e6:68:59:
+         66:68:79:ef:a0:51:eb:ec:05:26:14:97:d6:1e:0e:1e:11:d7:
+         b7:a2:d0:64:15:c1:01:f3:74:61:47:38:cb:4a:61:ff:99:be:
+         e2:54:4b:48
+-----BEGIN CERTIFICATE-----
+MIIDazCCAlMCAQIwDQYJKoZIhvcNAQELBQAwgYQxCzAJBgNVBAYTAlVTMRAwDgYD
+VQQIDAdJbmRpYW5hMQ0wCwYDVQQHDARBdm9uMQ8wDQYDVQQKDAZQdXJkdWUxEDAO
+BgNVBAsMB1N0dWRlbnQxDTALBgNVBAMMBHJvb3QxIjAgBgkqhkiG9w0BCQEWE2Rh
+d3NvbjUwQHB1cmR1ZS5lZHUwHhcNMjIwMzAyMjA1NzA0WhcNMjIwNTMxMjA1NzA0
+WjByMQswCQYDVQQGEwJVUzEQMA4GA1UECAwHSW5kaW5hYTENMAsGA1UEBwwEQXZv
+bjEPMA0GA1UECgwGUHVydWRlMQ4wDAYDVQQLDAVTVFVFTjEPMA0GA1UEAwwGY2xp
+ZW50MRAwDgYJKoZIhvcNAQkBFgF6MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB
+CgKCAQEA2SJgjRHcTL77s5Kf96BOLcqLJeTybmcJ3Cx4d5sGS7JCqjK83pJfq2Ov
+WlEn96jWC/piQ/KpnbEL1kCkqsNtF7SKtL4QlhmRPeivz/JyVmSjnBFAESWO/a2v
+8j6J7/Z9uIHA2a+8w2GV6kcWe8B+51YjPqO4gnIbr6Y/izgta0c9ORW1PvxJollP
+Q0JXkf5/qklC/Q3SbUbOlEi4Nj7hS7T9iNSPcc8qn1ZkMJoNK3ZxD5XfAnTJFbjB
+J654ILjxGKShFef3AqYXqUUvO9rtG+SyL9XhfVPor640IXXTUhGMUQZopGV2WKQT
+NeXUZy+GnayYcK3hoNTdJPENhevj4QIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQCJ
+KnNzNA8vv51Uy0VAbmDODy76VRg9wViwJhwfBEw7pXgzgzwRXpuSaPgvLgdOAcTB
+dtyz/4wPh2PvTnd0BLFFrlIlpRuLkQiHf0nO1DZstlURRlfRgcJDQJxuzjrxjB4P
+iWXpmUzolnSuJaDM7LyE+pTL7gOy++lhyJ7eZf18tH5jE/Y1ZpFD20arhfqg94HL
+/8wxGze4Rs+KshYwHqqW0dg+Fo/cjflFeCk4W2dmYiY+XVIFhTIM5T7xSt/UlsrI
+t6mXLRO7aCcnQKSrFqmr51T3Fw/maFlmaHnvoFHr7AUmFJfWHg4eEde3otBkFcEB
+83RhRzjLSmH/mb7iVEtI
+-----END CERTIFICATE-----
