@@ -825,6 +825,11 @@ static int tls_set_cipher ( struct tls_connection *tls,
 		return -ENOMEM_CONTEXT;
 	}
 
+	DBGC( tls, "TLS %p: Pubkey context size: %d\n", tls, pubkey->ctxsize);
+	DBGC( tls, "TLS %p: Cipher context size: %d\n", tls, cipher->ctxsize);
+	DBGC( tls, "TLS %p: Digest context size: %d\n", tls, digest->ctxsize);
+
+
 	/* Assign storage */
 	cipherspec->dynamic = dynamic;
 	cipherspec->pubkey_ctx = dynamic;	dynamic += pubkey->ctxsize;
@@ -836,6 +841,8 @@ static int tls_set_cipher ( struct tls_connection *tls,
 	/* Store parameters */
 	cipherspec->suite = suite;
 
+	DBGC( tls, "TLS %p: Cipher is set!\n", tls);
+	
 	return 0;
 }
 
@@ -1984,6 +1991,7 @@ static int tls_new_server_hello_done ( struct tls_connection *tls,
 	} __attribute__ (( packed )) *hello_done = data;
 	int rc;
 
+	DBGC( tls, "Entering server hello done!");
 	/* Sanity check */
 	if ( sizeof ( *hello_done ) != len ) {
 		DBGC ( tls, "TLS %p received overlength Server Hello Done\n",
@@ -2001,6 +2009,7 @@ static int tls_new_server_hello_done ( struct tls_connection *tls,
 	}
 	pending_get ( &tls->validation );
 
+	DBGC( tls, "Returning from server hello done!\n");
 	return 0;
 }
 
@@ -2098,15 +2107,30 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	uint16_t size;
 	uint16_t total_size_used = 0;
 	struct tls_cipherspec * cipherspec = &tls->tx_cipherspec_pending; // pending or not
-	struct dhe_context * context = cipherspec->pubkey_ctx;
 	uint8_t * c_data = (uint8_t *) data;
+	uint8_t ctx[ cipherspec->suite->pubkey->ctxsize ];
 	// Optimize to loop later
 
+	//if ( ( rc = pubkey_init ( pubkey, ctx, key->data, key->len ) ) != 0 ) {
+
+	DBGC(tls, "TLS %p: Beginning context initializaiton with pubkey context size: %d\n", tls, cipherspec->suite->pubkey->ctxsize);
+
+	pubkey_init(cipherspec->suite->pubkey, ctx, NULL, 0);
+
+	struct dhe_context * context = cipherspec->pubkey_ctx;
+	DBGC(tls, "TLS %p: Beginning server key exchange parsing\n", tls);
+
 	memcpy(&size, c_data, 2);
+
+	DBGC(tls, "TLS %p: Memcpy passed\n", tls);
 	total_size_used += 2;
 
-	bigint_init ( ( ( bigint_t ( context->prime_size ) * ) context->prime ),
-		      c_data + total_size_used, size );
+	DBGC(tls, "TLS %p: Prime size to initialize big int with: %d", tls, context->prime_size);
+	bigint_t ( context->prime_size ) *output = ( ( void * ) context->prime );
+
+	bigint_init ( output, c_data + total_size_used, size );
+
+	DBGC(tls, "TLS %p: Big Int initialized 1\n", tls);
 
 	//bigint_t ( context->prime_size ) *output = ( ( void * ) context->prime );
 	//context.prime = bigint_t(bigint_required_size(size));
@@ -2120,6 +2144,8 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	//context.generator = bigint_t(bigint_required_size(size));
 	bigint_init ( ( ( bigint_t ( context->prime_size ) * ) context->generator ),
 		      c_data + total_size_used, size );
+
+	DBGC(tls, "TLS %p: Big Int initialized 2\n", tls);
 	//bigint_init(context->generator, c_data + total_size_used, size);
 	total_size_used += size;
 
@@ -2129,9 +2155,13 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	//context.server_pubval = bigint_t(bigint_required_size(size));
 	bigint_init ( ( ( bigint_t ( context->prime_size ) * ) context->server_pubval ),
 		      c_data + total_size_used, size );
+
+	DBGC(tls, "TLS %p: Big Int initialized 3\n", tls);
 	//bigint_init(context->server_pubval, c_data + total_size_used, size);
 	//context.server_pubval_size = bigint_size(context.server_pubval);
 	total_size_used += size;
+
+	DBGC(tls, "TLS %p: DH Params parsed, beginning signature parse\n", tls);
 
 	// verify signature, must verify for security against man-in-the-middle
 	// signature is RSA-PSS, hash is SHA-256
@@ -2144,6 +2174,7 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 
 	if (sig_size == 0)
 	{
+		DBGC(tls, "TLS %p found no signature\n", tls);
 		// no sig
 		return -1;
 	}
@@ -2201,32 +2232,48 @@ static int tls_new_handshake ( struct tls_connection *tls,
 		/* Handle payload */
 		switch ( handshake->type ) {
 		case TLS_HELLO_REQUEST:
+			DBGC(tls, "Receiving new Server Hello Request!\n");
 			rc = tls_new_hello_request ( tls, payload,
 						     payload_len );
+			DBGC(tls, "Received new Server Hello Request!\n");
 			break;
 		case TLS_SERVER_HELLO:
+			DBGC(tls, "Receiving new Server Hello!\n");
 			rc = tls_new_server_hello ( tls, payload, payload_len );
+			DBGC(tls, "Received new Server Hello!\n");
 			break;
 		case TLS_NEW_SESSION_TICKET:
+			DBGC(tls, "Receiving new Session Ticket!\n");
 			rc = tls_new_session_ticket ( tls, payload,
 						      payload_len );
+			DBGC(tls, "Received new Session Ticket!\n");
 			break;
 		case TLS_CERTIFICATE:
+			DBGC(tls, "Receiving new Certificate!\n");
 			rc = tls_new_certificate ( tls, payload, payload_len );
+			DBGC(tls, "Received new Certificate!\n");
 			break;
 		case TLS_CERTIFICATE_REQUEST:
+			DBGC(tls, "Receiving new Certificate Request!\n");
 			rc = tls_new_certificate_request ( tls, payload,
 							   payload_len );
+			DBGC(tls, "Received new Certificate Request!\n");
 			break;
 		case TLS_SERVER_HELLO_DONE:
+			DBGC(tls, "Receiving new Server Hello Done!\n");
 			rc = tls_new_server_hello_done ( tls, payload,
 							 payload_len );
+			DBGC(tls, "Received new Server Hello Done!\n");
 			break;
 		case TLS_SERVER_KEY_EXCHANGE:
+			DBGC(tls, "Receiving new Server Key Exchange!\n");
             rc = tls_new_server_key_exchange ( tls, payload, payload_len);
+			DBGC(tls, "Received new Server Key Exchange!\n");
             break;
 		case TLS_FINISHED:
+			DBGC(tls, "Receiving new Finished!\n");
 			rc = tls_new_finished ( tls, payload, payload_len );
+			DBGC(tls, "Received new Finished!\n");
 			break;
 		default:
 			DBGC ( tls, "TLS %p ignoring handshake type %d\n",
@@ -2243,7 +2290,11 @@ static int tls_new_handshake ( struct tls_connection *tls,
 
 		/* Abort on failure */
 		if ( rc != 0 )
+		{
+			DBGC(tls, "TLS %p aborted tls_new_handshake due to failure. Code: " "%s\n", tls, strerror(rc));
 			return rc;
+
+		}
 
 		/* Move to next handshake record */
 		data += record_len;
@@ -3134,35 +3185,43 @@ static void tls_tx_step ( struct tls_connection *tls ) {
             tls->session_id_len = sizeof(tls->session_id);
         }
         /* Send Client Hello */
+		DBGC(tls, "TLS %p trying to send Client Hello!\n", tls);
         if ((rc = tls_send_client_hello(tls)) != 0) {
             DBGC(tls, "TLS %p could not send Client Hello: %s\n",
                  tls, strerror(rc));
             goto err;
         }
+		DBGC(tls, "TLS %p sent Client Hello!\n", tls);
         tls->tx_pending &= ~TLS_TX_CLIENT_HELLO;
     } else if (tls->tx_pending & TLS_TX_CERTIFICATE) {
         /* Send Certificate */
+		DBGC(tls, "TLS %p trying to send Certificate!\n", tls);
         if ((rc = tls_send_certificate(tls)) != 0) {
             DBGC(tls, "TLS %p cold not send Certificate: %s\n",
                  tls, strerror(rc));
             goto err;
         }
+		DBGC(tls, "TLS %p sent Certificate!\n", tls);
         tls->tx_pending &= ~TLS_TX_CERTIFICATE;
     } else if (tls->tx_pending & TLS_TX_CLIENT_KEY_EXCHANGE) {
         /* Send Client Key Exchange */
+		DBGC(tls, "TLS %p trying to send Client Key Exchange!\n", tls);
         if ((rc = tls_send_client_key_exchange(tls)) != 0) {
             DBGC(tls, "TLS %p could not send Client Key "
                       "Exchange: %s\n", tls, strerror(rc));
             goto err;
         }
+		DBGC(tls, "TLS %p sent Client Key Exchange!\n", tls);
         tls->tx_pending &= ~TLS_TX_CLIENT_KEY_EXCHANGE;
     } else if (tls->tx_pending & TLS_TX_CERTIFICATE_VERIFY) {
         /* Send Certificate Verify */
+		DBGC(tls, "TLS %p trying to send Certificate Verify (and alloc pubkey)!\n", tls);
         if ((rc = tls_send_certificate_verify(tls)) != 0) {
             DBGC(tls, "TLS %p could not send Certificate "
                       "Verify: %s\n", tls, strerror(rc));
             goto err;
         }
+		DBGC(tls, "TLS %p sent Certificate Verify (and alloc pubkey)!\n", tls);
         tls->tx_pending &= ~TLS_TX_CERTIFICATE_VERIFY;
     } else if (tls->tx_pending & TLS_TX_CHANGE_CIPHER) {
         /* Send Change Cipher, and then change the cipher in use */

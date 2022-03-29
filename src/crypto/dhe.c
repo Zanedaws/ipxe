@@ -97,15 +97,21 @@ static int dhe_alloc ( struct dhe_context *context, size_t prime_size ) {
 	return 0;
 }
 
-static int dhe_init ( void * ctx, const void *key, size_t key_len ) {
+static int dhe_init ( void * ctx, const void *key, size_t key_len ) { // For DHE, key is NULL and key_len is defaulted to 0 since they are unneeded
 	struct dhe_context * context = ctx;
 	int rc = 0;
 
-	if (!key_len)
+	if (key_len)
+	{
+		rc = -1;
 		goto err_alloc;
-
-	if (key == NULL)
+	}
+		
+	if (key != NULL)
+	{
+		rc = -1;
 		goto err_alloc;
+	}
 
 	memset ( context, 0, sizeof ( *context ));
 
