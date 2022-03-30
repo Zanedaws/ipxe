@@ -29,7 +29,7 @@ struct dhe_context {
     /** Server public value (g^X mod p) */
     bigint_element_t * server_pubval;
 	/** Client diffieHellman parameter */
-	bigint_element_t * client_dh_param;
+	void * client_dh_param;
 	/** Temporary working space for modular exponentiation */
 	void *tmp;
 	/** Max length any value in context can have */

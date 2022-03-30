@@ -130,17 +130,17 @@ int dhe_generate_client_value(void *ctx)
 	long int random_num = random();
 	bigint_t ( bigint_required_size ( sizeof ( random_num ) ) ) * random_bigint = (void *) &random_num; // this needs to be checked
 	bigint_init(random_bigint, &random_num, sizeof(random_num));
+	
 	bigint_t (context -> prime_size) * base = ( ( void * ) context->generator );
 	bigint_t (context -> prime_size) * prime = ( ( void * ) context->prime );
 	bigint_t (context -> prime_size) * output = ( ( void * ) context->client_dh_param );
 	bigint_mod_exp ( base, prime, random_bigint, output, context->tmp);
-	bigint_init ( ( ( bigint_t ( context->prime_size ) * ) context->client_dh_param ),
-		      output, context->prime_size );
-	//context->client_dh_param = output;
+	bigint_done (output, context->client_dh_param, context->prime_size);
+	
 	bigint_t (context -> prime_size) * server_pubval = ( (void *) context->server_pubval);
 	bigint_t (context -> prime_size) * premaster_secret_output = context -> premaster_secret;
 	bigint_mod_multiply( output, server_pubval, prime, premaster_secret_output, context->tmp);
-	context->premaster_secret = premaster_secret_output;
+	bigint_done(output, context->premaster_secret, context->prime_size);
 
 	return 0;
 }

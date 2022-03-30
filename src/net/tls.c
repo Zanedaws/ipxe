@@ -1043,10 +1043,10 @@ static void tls_restart ( struct tls_connection *tls ) {
 static int tls_send_handshake ( struct tls_connection *tls,
 				void *data, size_t len ) {
 
-	DBGC(tls, "TLS %p: Adding to handshake", tls);
+	DBGC(tls, "TLS %p: Adding to handshake\n", tls);
 	/* Add to handshake digest */
 	tls_add_handshake ( tls, data, len );
-	DBGC(tls, "TLS %p: Preparing to send plaintext", tls);
+	DBGC(tls, "TLS %p: Preparing to send plaintext\n", tls);
 
 	/* Send record */
 	return tls_send_plaintext ( tls, TLS_TYPE_HANDSHAKE, data, len );
@@ -1248,6 +1248,8 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		DBGC(tls, "DHE cipher suite entered!\n");
 		// diffieHellman Message
 		struct dhe_context * context = cipherspec->pubkey_ctx;
+		DBGC(tls, "TLS %p: Max size: %d, Prime size: %d\n", tls, max_len, context->prime_size);
+
 		struct {
 			uint32_t type_length;
 			uint16_t client_pubval_bytes; // bytes of client_pubval to send
@@ -1255,7 +1257,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		} __attribute__ (( packed )) key_xchg;
 
 		// How to calc premaster secret? - calc'ed in dhe.c when client val is generated
-		if ((rc = dhe_generate_client_value(cipherspec->pubkey_ctx)) != 0)
+		if ((rc = dhe_generate_client_value(context)) != 0)
 			return rc;
 
 		DBGC(tls, "DH Client Param calculated!\n");
@@ -1264,6 +1266,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		
 		memset ( &key_xchg, 0, sizeof ( key_xchg ) );
 		key_xchg.client_pubval_bytes = sizeof ( key_xchg.client_pubval ); // How to copy bytes into key_xchg?
+		DBGC(tls, "Client Pubval Bytes: %d\n", key_xchg.client_pubval_bytes);
 		bigint_t ( context->prime_size ) *output = ( ( void * ) context->client_dh_param );
 		bigint_done(output, key_xchg.client_pubval, max_len); // may read past given size, max length
 
@@ -2570,6 +2573,8 @@ static int tls_send_plaintext ( struct tls_connection *tls, unsigned int type,
 	/* Calculate MAC */
 	tls_hmac ( cipherspec, tls->tx_seq, &plaintext_tlshdr, data, len, mac );
 
+	DBGC(tls, "MAC calculated!\n");
+
 	/* Allocate and assemble plaintext struct */
 	if ( is_stream_cipher ( cipher ) ) {
 		plaintext = tls_assemble_stream ( tls, data, len, mac,
@@ -2584,6 +2589,8 @@ static int tls_send_plaintext ( struct tls_connection *tls, unsigned int type,
 		rc = -ENOMEM_TX_PLAINTEXT;
 		goto done;
 	}
+
+	DBGC(tls, "Plaintext assembled\n");
 
 	DBGC2 ( tls, "Sending plaintext data:\n" );
 	DBGC2_HD ( tls, plaintext, plaintext_len );
@@ -2607,6 +2614,8 @@ static int tls_send_plaintext ( struct tls_connection *tls, unsigned int type,
 		 cipher->ctxsize );
 	cipher_encrypt ( cipher, cipherspec->cipher_next_ctx, plaintext,
 			 iob_put ( ciphertext, plaintext_len ), plaintext_len );
+
+	DBGC(tls, "Ciphertext assembled\n");
 
 	/* Free plaintext as soon as possible to conserve memory */
 	free ( plaintext );
