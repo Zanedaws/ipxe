@@ -1043,8 +1043,10 @@ static void tls_restart ( struct tls_connection *tls ) {
 static int tls_send_handshake ( struct tls_connection *tls,
 				void *data, size_t len ) {
 
+	DBGC(tls, "TLS %p: Adding to handshake", tls);
 	/* Add to handshake digest */
 	tls_add_handshake ( tls, data, len );
+	DBGC(tls, "TLS %p: Preparing to send plaintext", tls);
 
 	/* Send record */
 	return tls_send_plaintext ( tls, TLS_TYPE_HANDSHAKE, data, len );
@@ -1243,6 +1245,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 	int rc;
 	if (cipherspec->suite->pubkey->name == "dhe")
 	{
+		DBGC(tls, "DHE cipher suite entered!\n");
 		// diffieHellman Message
 		struct dhe_context * context = cipherspec->pubkey_ctx;
 		struct {
@@ -1252,13 +1255,15 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		} __attribute__ (( packed )) key_xchg;
 
 		// How to calc premaster secret? - calc'ed in dhe.c when client val is generated
-		if ((rc = dhe_generate_client_value(context)) != 0)
+		if ((rc = dhe_generate_client_value(cipherspec->pubkey_ctx)) != 0)
 			return rc;
+
+		DBGC(tls, "DH Client Param calculated!\n");
 
 		memcpy(tls->dhe_pre_master_secret.pre_master_secret, context->premaster_secret, 256);
 		
 		memset ( &key_xchg, 0, sizeof ( key_xchg ) );
-		key_xchg.client_pubval_bytes = sizeof ( key_xchg.client_pubval );
+		key_xchg.client_pubval_bytes = sizeof ( key_xchg.client_pubval ); // How to copy bytes into key_xchg?
 		bigint_t ( context->prime_size ) *output = ( ( void * ) context->client_dh_param );
 		bigint_done(output, key_xchg.client_pubval, max_len); // may read past given size, max length
 
@@ -1266,6 +1271,8 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 			( cpu_to_le32 ( TLS_CLIENT_KEY_EXCHANGE ) |
 			htonl ( sizeof ( key_xchg ) -
 				sizeof ( key_xchg.type_length ) ) );
+
+		DBGC(tls, "DH preparing to send params!\n");
 
 		return tls_send_handshake ( tls, &key_xchg,
 						( sizeof ( key_xchg ) ) );
@@ -1991,7 +1998,6 @@ static int tls_new_server_hello_done ( struct tls_connection *tls,
 	} __attribute__ (( packed )) *hello_done = data;
 	int rc;
 
-	DBGC( tls, "Entering server hello done!");
 	/* Sanity check */
 	if ( sizeof ( *hello_done ) != len ) {
 		DBGC ( tls, "TLS %p received overlength Server Hello Done\n",
@@ -2009,7 +2015,6 @@ static int tls_new_server_hello_done ( struct tls_connection *tls,
 	}
 	pending_get ( &tls->validation );
 
-	DBGC( tls, "Returning from server hello done!\n");
 	return 0;
 }
 
@@ -2108,24 +2113,25 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	uint16_t total_size_used = 0;
 	struct tls_cipherspec * cipherspec = &tls->tx_cipherspec_pending; // pending or not
 	uint8_t * c_data = (uint8_t *) data;
-	uint8_t ctx[ cipherspec->suite->pubkey->ctxsize ];
+	//struct dhe_context * context;
 	// Optimize to loop later
 
 	//if ( ( rc = pubkey_init ( pubkey, ctx, key->data, key->len ) ) != 0 ) {
 
 	DBGC(tls, "TLS %p: Beginning context initializaiton with pubkey context size: %d\n", tls, cipherspec->suite->pubkey->ctxsize);
 
-	pubkey_init(cipherspec->suite->pubkey, ctx, NULL, 0);
+	pubkey_init(cipherspec->suite->pubkey, cipherspec->pubkey_ctx, NULL, 0);
+
+	DBGC(tls, "TLS %p: Beginning server key exchange parsing\n", tls);
 
 	struct dhe_context * context = cipherspec->pubkey_ctx;
-	DBGC(tls, "TLS %p: Beginning server key exchange parsing\n", tls);
 
 	memcpy(&size, c_data, 2);
 
 	DBGC(tls, "TLS %p: Memcpy passed\n", tls);
 	total_size_used += 2;
 
-	DBGC(tls, "TLS %p: Prime size to initialize big int with: %d", tls, context->prime_size);
+	DBGC(tls, "TLS %p: Prime size to initialize big int with: %d\n", tls, context->prime_size);
 	bigint_t ( context->prime_size ) *output = ( ( void * ) context->prime );
 
 	bigint_init ( output, c_data + total_size_used, size );
@@ -3101,12 +3107,15 @@ static void tls_validator_done ( struct tls_connection *tls, int rc ) {
 	}
 
 	/* Initialise public key algorithm */
-	if ( ( rc = pubkey_init ( pubkey, cipherspec->pubkey_ctx,
-				  cert->subject.public_key.raw.data,
-				  cert->subject.public_key.raw.len ) ) != 0 ) {
-		DBGC ( tls, "TLS %p cannot initialise public key: %s\n",
-		       tls, strerror ( rc ) );
-		goto err;
+	if (pubkey->name != "dhe")
+	{
+		if ( ( rc = pubkey_init ( pubkey, cipherspec->pubkey_ctx,
+					cert->subject.public_key.raw.data,
+					cert->subject.public_key.raw.len ) ) != 0 ) {
+			DBGC ( tls, "TLS %p cannot initialise public key: %s\n",
+				tls, strerror ( rc ) );
+			goto err;
+		}
 	}
 
 	/* Schedule Client Key Exchange, Change Cipher, and Finished */
