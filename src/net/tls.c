@@ -2159,14 +2159,14 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	bigint_t ( context->max_len ) *output = ( ( void * ) context->prime );
 	bigint_init ( output, input_1, size );
 
-	void * test = malloc(context->prime_size);
+	void * test4 = malloc(context->prime_size);
 
 	bigint_t ( context->max_len ) * test_output = (( void *) context -> prime);
-	bigint_done(test_output, test, context->prime_size);
+	bigint_done(test_output, test4, context->prime_size);
 
 	for(i = 0; i < context->prime_size; i++)
 	{
-		DBGC(tls, "Byte %d of prime: %d\n", i, ((uint8_t *)test)[i]);
+		DBGC(tls, "Byte %d of prime: %d\n", i, ((uint8_t *)test4)[i]);
 	}
 
 	memcpy(&size1, c_data + total_size_used++, sizeof(size1));
