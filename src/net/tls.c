@@ -2209,7 +2209,7 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	memcpy(&size2, c_data + total_size_used++, sizeof(size2));
 	size = (size1 << 8) | size2;
 
-	/*uint8_t signature[size];
+	uint8_t signature[size];
 	for(i = 0; i < size; i++)
 	{
 		signature[i] = (c_data + total_size_used)[i];
@@ -2218,11 +2218,11 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 
 	if (total_size_used != len)
 	{
-		DBGC(tls, "TLS %p: Not enough bytes used\n", tls);
+		DBGC(tls, "TLS %p: Not enough bytes used%d\n", tls, signature_header);
 		// no sig
 		return -1;
-	}*/
-	
+	}
+
 	//void * signature = zalloc(sig_size);
 	//memcpy(signature, c_data + total_size_used, sig_size);
 	//rc = pubkey_verify(/*pubkey_algorithm, context, digest, value, sig, sig_length*/);
