@@ -2165,7 +2165,7 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 
 	for(i = 0; i < context->prime_size; i++)
 	{
-		DBGC(tls, "Byte %d of prime: %d\n", i, ((uint8_t *)test4)[i]);
+		DBGC(tls, "Byte %d of prime: %d\n", i, input_1[i]);
 	}
 
 	memcpy(&size1, c_data + total_size_used++, sizeof(size1));
