@@ -2157,7 +2157,7 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	}
 	total_size_used += size;
 	bigint_t ( context->max_len ) *output = ( ( void * ) context->prime );
-	bigint_init ( output, input_1, size )
+	bigint_init ( output, input_1, size );
 
 	void * test4 = malloc(context->prime_size);
 
