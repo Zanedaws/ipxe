@@ -75,7 +75,7 @@ static int dhe_alloc ( struct dhe_context *context, size_t prime_size ) {
 		bigint_t ( size ) client_pubval;
 		bigint_t ( size ) server_pubval;
 		bigint_t ( size ) prime;
-		bigint_t ( size ) generator;
+		bigint_t ( 1 ) generator; // generator is always 2
 		uint8_t tmp[tmp_len];
 	} __attribute__ (( packed )) * dynamic;
 
@@ -92,7 +92,7 @@ static int dhe_alloc ( struct dhe_context *context, size_t prime_size ) {
 	context->server_pubval = &dynamic->server_pubval.element[0];
 	context->client_dh_param = &dynamic->client_pubval.element[0];
 	context->tmp = &dynamic->tmp;
-	context->max_len = prime_size;
+	context->max_len = size;
 
 	return 0;
 }
@@ -131,16 +131,16 @@ int dhe_generate_client_value(void *ctx)
 	bigint_t ( bigint_required_size ( sizeof ( random_num ) ) ) * random_bigint = (void *) &random_num; // this needs to be checked
 	bigint_init(random_bigint, &random_num, sizeof(random_num));
 	
-	bigint_t (context -> prime_size) * base = ( ( void * ) context->generator );
-	bigint_t (context -> prime_size) * prime = ( ( void * ) context->prime );
-	bigint_t (context -> prime_size) * output = ( ( void * ) context->client_dh_param );
+	bigint_t (context -> generator_size) * base = ( ( void * ) context->generator );
+	bigint_t (context -> max_len) * prime = ( ( void * ) context->prime );
+	bigint_t (context -> max_len) * output = ( ( void * ) context->client_dh_param );
 	bigint_mod_exp ( base, prime, random_bigint, output, context->tmp);
-	bigint_done (output, context->client_dh_param, context->prime_size);
+	//bigint_done (output, context->client_dh_param, context->prime_size);
 	
-	bigint_t (context -> prime_size) * server_pubval = ( (void *) context->server_pubval);
-	bigint_t (context -> prime_size) * premaster_secret_output = context -> premaster_secret;
+	bigint_t (context -> max_len) * server_pubval = ( (void *) context->server_pubval);
+	bigint_t (context -> max_len) * premaster_secret_output = context -> premaster_secret;
 	bigint_mod_multiply( output, server_pubval, prime, premaster_secret_output, context->tmp);
-	bigint_done(output, context->premaster_secret, context->prime_size);
+	//bigint_done(output, context->premaster_secret, context->prime_size);
 
 	return 0;
 }

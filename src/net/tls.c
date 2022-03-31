@@ -1253,27 +1253,36 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		struct {
 			uint32_t type_length;
 			uint16_t client_pubval_bytes; // bytes of client_pubval to send
-			uint8_t client_pubval[max_len];
+			uint8_t client_pubval[context->prime_size];
 		} __attribute__ (( packed )) key_xchg;
 
 		// How to calc premaster secret? - calc'ed in dhe.c when client val is generated
 		if ((rc = dhe_generate_client_value(context)) != 0)
 			return rc;
 
-		DBGC(tls, "DH Client Param calculated!\n");
+		bigint_t ( context->max_len ) *client_pubval_bigint = ( ( void * ) context->client_dh_param );
+		bigint_done(client_pubval_bigint, key_xchg.client_pubval, context->prime_size);
+		
+		for(uint16_t i = 0; i < context->prime_size; i++)
+		{
+			DBGC(tls, "DH Client Param element %d: %d\n", i, key_xchg.client_pubval[i]);
+		}
 
-		memcpy(tls->dhe_pre_master_secret.pre_master_secret, context->premaster_secret, 256);
+		memcpy(tls->dhe_pre_master_secret.pre_master_secret, context->premaster_secret, context->prime_size);
 		
 		memset ( &key_xchg, 0, sizeof ( key_xchg ) );
 		key_xchg.client_pubval_bytes = sizeof ( key_xchg.client_pubval ); // How to copy bytes into key_xchg?
 		DBGC(tls, "Client Pubval Bytes: %d\n", key_xchg.client_pubval_bytes);
-		bigint_t ( context->prime_size ) *output = ( ( void * ) context->client_dh_param );
-		bigint_done(output, key_xchg.client_pubval, max_len); // may read past given size, max length
+		bigint_t ( context->max_len ) *output = ( ( void * ) context->client_dh_param );
+		bigint_done(output, key_xchg.client_pubval, context->prime_size); 
 
 		key_xchg.type_length =
 			( cpu_to_le32 ( TLS_CLIENT_KEY_EXCHANGE ) |
 			htonl ( sizeof ( key_xchg ) -
 				sizeof ( key_xchg.type_length ) ) );
+
+		key_xchg.client_pubval_bytes =
+			htons ( sizeof ( key_xchg.client_pubval ) );
 
 		DBGC(tls, "DH preparing to send params!\n");
 
@@ -2112,7 +2121,6 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 {
     // Get server diffieHellman values used to calc key
 	int rc = 0;
-	uint16_t size;
 	uint16_t total_size_used = 0;
 	struct tls_cipherspec * cipherspec = &tls->tx_cipherspec_pending; // pending or not
 	uint8_t * c_data = (uint8_t *) data;
@@ -2120,6 +2128,7 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	// Optimize to loop later
 
 	//if ( ( rc = pubkey_init ( pubkey, ctx, key->data, key->len ) ) != 0 ) {
+	uint16_t i = 0;
 
 	DBGC(tls, "TLS %p: Beginning context initializaiton with pubkey context size: %d\n", tls, cipherspec->suite->pubkey->ctxsize);
 
@@ -2129,47 +2138,64 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 
 	struct dhe_context * context = cipherspec->pubkey_ctx;
 
-	memcpy(&size, c_data, 2);
+	uint8_t size1;
+	uint8_t size2;
+	uint16_t size;
 
-	DBGC(tls, "TLS %p: Memcpy passed\n", tls);
-	total_size_used += 2;
+	memcpy(&size1, c_data + total_size_used++, sizeof(size1));
+	memcpy(&size2, c_data + total_size_used++, sizeof(size2));
+	size = (size1 << 8) | size2;
+
+	DBGC(tls, "TLS %p: Memcpy passed. Size1 is: %d Size2 is: %d Size is: %d\n", tls, size1, size2, size); //(0x0100)
 
 	DBGC(tls, "TLS %p: Prime size to initialize big int with: %d\n", tls, context->prime_size);
-	bigint_t ( context->prime_size ) *output = ( ( void * ) context->prime );
 
-	bigint_init ( output, c_data + total_size_used, size );
-
-	DBGC(tls, "TLS %p: Big Int initialized 1\n", tls);
-
-	//bigint_t ( context->prime_size ) *output = ( ( void * ) context->prime );
-	//context.prime = bigint_t(bigint_required_size(size));
-	//bigint_init(output, c_data + total_size_used, size);
-	//context->prime = output;
-	//context.prime_size = bigint_size(context.prime);
+	uint8_t input_1[size];
+	for (i = 0; i < size; i++)
+	{
+		input_1[i] = (c_data + total_size_used)[i];
+	}
 	total_size_used += size;
+	bigint_t ( context->max_len ) *output = ( ( void * ) context->prime );
+	bigint_init ( output, input_1, size );
 
-	memcpy(&size, c_data + total_size_used, 2); // size of generator
-	total_size_used += 2;
-	//context.generator = bigint_t(bigint_required_size(size));
-	bigint_init ( ( ( bigint_t ( context->prime_size ) * ) context->generator ),
-		      c_data + total_size_used, size );
+	memcpy(&size1, c_data + total_size_used++, sizeof(size1));
+	memcpy(&size2, c_data + total_size_used++, sizeof(size2));
+	size = (size1 << 8) | size2;
 
-	DBGC(tls, "TLS %p: Big Int initialized 2\n", tls);
-	//bigint_init(context->generator, c_data + total_size_used, size);
+	DBGC(tls, "TLS %p: Generator size: %d\n", tls, size);
+
+	uint8_t input_2[size];
+	for(i = 0; i < size; i++)
+	{
+		input_2[i] = (c_data + total_size_used)[i];
+	}
 	total_size_used += size;
+	context->generator_size = size;
+	bigint_t ( size ) *output_2 = ( ( void * ) context->generator );
+	bigint_init ( output_2, input_2, size );
 
 	// read pubval from data and assign
-	memcpy(&size, c_data + total_size_used, 2); // size of generator
-	total_size_used += 2;
-	//context.server_pubval = bigint_t(bigint_required_size(size));
-	bigint_init ( ( ( bigint_t ( context->prime_size ) * ) context->server_pubval ),
-		      c_data + total_size_used, size );
-
-	DBGC(tls, "TLS %p: Big Int initialized 3\n", tls);
-	//bigint_init(context->server_pubval, c_data + total_size_used, size);
-	//context.server_pubval_size = bigint_size(context.server_pubval);
+	memcpy(&size1, c_data + total_size_used++, sizeof(size1));
+	memcpy(&size2, c_data + total_size_used++, sizeof(size2));
+	size = (size1 << 8) | size2;
+	
+	uint8_t input_3[size];
+	for(i = 0; i < size; i++)
+	{
+		input_3[i] = (c_data + total_size_used)[i];
+	}
 	total_size_used += size;
+	bigint_t ( context->max_len ) *output_3 = ( ( void * ) context->server_pubval );
+	bigint_init ( output_3, input_3, size );
 
+	void * test = malloc(context->prime_size);
+	bigint_done(output_3, test, size);
+
+	for(i = 0; i < size; i++)
+	{
+		DBGC(tls, "Server Pubkey %d: %d\n", i + 1, ((uint8_t *)test)[i]);
+	}
 	DBGC(tls, "TLS %p: DH Params parsed, beginning signature parse\n", tls);
 
 	// verify signature, must verify for security against man-in-the-middle

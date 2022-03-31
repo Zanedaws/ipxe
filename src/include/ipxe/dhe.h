@@ -26,10 +26,12 @@ struct dhe_context {
 	unsigned int prime_size;
 	/** DHE Generator from server */
     bigint_element_t * generator;
+	/** Generator size */
+	unsigned int generator_size;
     /** Server public value (g^X mod p) */
     bigint_element_t * server_pubval;
 	/** Client diffieHellman parameter */
-	void * client_dh_param;
+	bigint_element_t * client_dh_param;
 	/** Temporary working space for modular exponentiation */
 	void *tmp;
 	/** Max length any value in context can have */
