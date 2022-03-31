@@ -2201,15 +2201,24 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	// verify signature, must verify for security against man-in-the-middle
 	// signature is RSA-PSS, hash is SHA-256
 	uint16_t signature_header;
-	memcpy(&signature_header, c_data + total_size_used, 2); // how to parse sig header/
-	total_size_used += 2;
-	memcpy(&size, c_data + total_size_used, 2); // size of sig
-	total_size_used += 2;
-	uint16_t sig_size = len - total_size_used;
+	memcpy(&size1, c_data + total_size_used++, sizeof(size1));
+	memcpy(&size2, c_data + total_size_used++, sizeof(size2));
+	signature_header = (size1 << 8) | size2;
 
-	if (sig_size == 0)
+	memcpy(&size1, c_data + total_size_used++, sizeof(size1));
+	memcpy(&size2, c_data + total_size_used++, sizeof(size2));
+	size = (size1 << 8) | size2;
+
+	uint8_t signature[size];
+	for(i = 0; i < size; i++)
 	{
-		DBGC(tls, "TLS %p found no signature\n", tls);
+		signature[i] = (c_data + total_size_used)[i];
+	}
+	total_size_used += size;
+
+	if (total_size_used != len)
+	{
+		DBGC(tls, "TLS %p: Not enough bytes used\n", tls);
 		// no sig
 		return -1;
 	}
