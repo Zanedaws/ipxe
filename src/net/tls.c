@@ -2213,8 +2213,11 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	for(i = 0; i < size; i++)
 	{
 		signature[i] = (c_data + total_size_used)[i];
+		DBGC(tls, "Signature byte %d: %d", i, signature[i]);
 	}
 	total_size_used += size;
+
+
 
 	if (total_size_used != len)
 	{
