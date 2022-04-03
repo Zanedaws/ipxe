@@ -1242,7 +1242,6 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 	struct tls_cipherspec *cipherspec = &tls->tx_cipherspec_pending;
 	struct pubkey_algorithm *pubkey = cipherspec->suite->pubkey;
 	size_t max_len = pubkey_max_len ( pubkey, cipherspec->pubkey_ctx );
-	int rc;
 	if (cipherspec->suite->pubkey->name == "dhe")
 	{
 		DBGC(tls, "DHE cipher suite entered!\n");
@@ -1257,8 +1256,27 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		} __attribute__ (( packed )) key_xchg;
 
 		// How to calc premaster secret? - calc'ed in dhe.c when client val is generated
-		if ((rc = dhe_generate_client_value(context)) != 0)
-			return rc;
+		/*if ((rc = dhe_generate_client_value(context)) != 0)
+			return rc;*/
+
+		uint32_t random_num = 0xabcabcab;
+		context->random = &random_num;
+		context->random_size = 1;
+		DBGC(tls, "Random used: %x\n", context->random[0]);
+		bigint_t ( context->random_size ) * random_bigint = ((void *) context->random); // this needs to be checked
+
+		DBGC(tls, "random context out: %x | random bigint out: %x\n", context->random[0], random_bigint->element[0]);
+		
+		bigint_t (context -> generator_size) * base = ( ( void * ) context->generator );
+		DBGC(tls, "generator context out: %x | generator bigint out: %x\n", context->generator[0], base->element[0]);
+
+		bigint_t (context -> max_len) * prime = ( ( void * ) context->prime );
+		bigint_mod_exp ( base, prime, random_bigint, (bigint_t (context -> max_len) *) context->client_dh_param, context->tmp);
+
+		for(uint16_t i = 0; i < context->max_len; i++)
+		{
+			DBGC(tls, "dh param bigint out: %x\n", context->client_dh_param[i]);
+		}
 
 		bigint_t ( context->max_len ) *client_pubval_bigint = ( ( void * ) context->client_dh_param );
 		bigint_done(client_pubval_bigint, key_xchg.client_pubval, context->prime_size);
@@ -2148,25 +2166,28 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 
 	DBGC(tls, "TLS %p: Memcpy passed. Size1 is: %d Size2 is: %d Size is: %d\n", tls, size1, size2, size); //(0x0100)
 
-	DBGC(tls, "TLS %p: Prime size to initialize big int with: %d\n", tls, context->prime_size);
-
 	uint8_t input_1[size];
 	for (i = 0; i < size; i++)
 	{
 		input_1[i] = (c_data + total_size_used)[i];
 	}
-	total_size_used += size;
-	bigint_t ( context->max_len ) *output = ( ( void * ) context->prime );
-	bigint_init ( output, input_1, size );
 
-	void * test4 = malloc(context->prime_size);
-
-	bigint_done(output, test4, context->prime_size);
-
-	for(i = 0; i < context->prime_size; i++)
+	uint32_t input_u32[context->max_len]; // we were experiencing errors with bigint init
+	for (i = 0; i < context->max_len; i++)
 	{
-		DBGC(tls, "Byte %d of prime: %d\n", i, input_1[i]);
+		input_u32[i] = (input_1[4 * i] << 24) | (input_1[4 * i + 1] << 16) | (input_1[4 * i + 2] << 8) | (input_1[4 * i + 3]);
 	}
+
+	//bigint_init ( ( (bigint_t ( context->max_len ) * ) context->prime), input_u32, size );
+	context->prime = input_u32;
+	//bigint_t (context->max_len) * primeTest = ((void *) context->prime);
+
+	total_size_used += size;
+
+	//for(i = 0; i < context->max_len; i++)
+	//{
+	//	DBGC(tls, "Uint32 %d of prime: %x\n", i, primeTest->element[i]);
+	//}
 
 	memcpy(&size1, c_data + total_size_used++, sizeof(size1));
 	memcpy(&size2, c_data + total_size_used++, sizeof(size2));
@@ -2181,8 +2202,8 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	}
 	total_size_used += size;
 	context->generator_size = size;
-	bigint_t ( size ) *output_2 = ( ( void * ) context->generator );
-	bigint_init ( output_2, input_2, size );
+	//bigint_t ( size ) *output_2 = ( ( void * ) context->generator );
+	bigint_init ( (bigint_t ( context->generator_size ) * ) context->generator, input_2, size );
 
 	// read pubval from data and assign
 	memcpy(&size1, c_data + total_size_used++, sizeof(size1));
@@ -2195,17 +2216,17 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 		input_3[i] = (c_data + total_size_used)[i];
 	}
 	total_size_used += size;
-	bigint_t ( context->max_len ) *output_3 = ( ( void * ) context->server_pubval );
-	bigint_init ( output_3, input_3, size );
+	//bigint_t ( context->max_len ) *output_3 = ( ( void * ) context->server_pubval );
+	bigint_init ( (bigint_t ( context->max_len ) *) context->server_pubval, input_3, size );
 
-	void * test = malloc(context->prime_size);
-	bigint_done(output_3, test, size);
+	//void * test = malloc(context->prime_size);
+	//bigint_t ( context -> max_len ) * server_pubval = ((void *) context -> server_pubval);
+	//bigint_done(server_pubval, test, size);
 
-	for(i = 0; i < size; i++)
+	/*for(i = 0; i < size; i++)
 	{
 		DBGC(tls, "Server Pubkey %d: %d\n", i + 1, ((uint8_t *)test)[i]);
-	}
-	DBGC(tls, "TLS %p: DH Params parsed, beginning signature parse\n", tls);
+	}*/
 
 	// verify signature, must verify for security against man-in-the-middle
 	// signature is RSA-PSS, hash is SHA-256

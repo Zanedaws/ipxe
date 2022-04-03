@@ -127,7 +127,8 @@ static int dhe_init ( void * ctx, const void *key, size_t key_len ) { // For DHE
 int dhe_generate_client_value(void *ctx)
 {
 	struct dhe_context * context = ctx;
-	long int random_num = random();
+	uint32_t random_num = random();
+	context->random = &random_num;
 	bigint_t ( bigint_required_size ( sizeof ( random_num ) ) ) * random_bigint = (void *) &random_num; // this needs to be checked
 	bigint_init(random_bigint, &random_num, sizeof(random_num));
 	
