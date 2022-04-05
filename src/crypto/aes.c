@@ -806,3 +806,7 @@ ECB_CIPHER ( aes_ecb, aes_ecb_algorithm,
 /* AES in Cipher Block Chaining mode */
 CBC_CIPHER ( aes_cbc, aes_cbc_algorithm,
 	     aes_algorithm, struct aes_context, AES_BLOCKSIZE );
+
+/* AES in Galois Counter Mode */
+GCM_CIPHER ( aes_gcm, aes_gcm_algorithm, 
+		aes_algorithm, struct aes_context, AES_BLOCKSIZE );
