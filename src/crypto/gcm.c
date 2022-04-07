@@ -57,18 +57,54 @@ static void gcm_xor ( const void *src, void *dst, size_t len ) {
 /**
  * GCM mult for hash function
  *
- * @v ctx
+ * @v ctx		context
  * @v src		Input data
  */
 static void gcm_mult(void *ctx, const void *src){
 	// Need to make context for gcm where there is room for a 128-bit input vector as well as an ouput vector
+	x[16];
+	output[16];
 
 	int i, j;
+	uchar lo, high , rem;
+	uint64_t zg, zl;
+
+	lo = (uchar)( x[15] & 0x0f);
+	hi = (uchar)(x[15]>> 4);
+	zh = ctx->HH[lo];
+	zl = ctx->HL[lo];
+
+
+	for( i = 15; i >= 0; i-- ) {
+        lo = (uchar) ( x[i] & 0x0f );
+        hi = (uchar) ( x[i] >> 4 );
+
+		if( i != 15 ) {
+            rem = (uchar) ( zl & 0x0f );
+            zl = ( zh << 60 ) | ( zl >> 4 );
+            zh = ( zh >> 4 );
+            zh ^= (uint64_t) last4[rem] << 48;
+            zh ^= ctx->HH[lo];
+            zl ^= ctx->HL[lo];
+        }
+        rem = (uchar) ( zl & 0x0f );
+        zl = ( zh << 60 ) | ( zl >> 4 );
+        zh = ( zh >> 4 );
+        zh ^= (uint64_t) last4[rem] << 48;
+        zh ^= ctx->HH[hi];
+        zl ^= ctx->HL[hi];
+	}
+}
+/**
+ * GCM mult for hash function
+ *
+ * @v ctx		gcm context
+ * @v src		Input data vector
+ */
+static void ghash(void *ctx, const void *src){
 	
 
-
 }
-
 
 /**
  * Encrypt data
