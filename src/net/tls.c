@@ -1309,7 +1309,10 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		}
 
 		DBGC(tls, "prime size: %d | random size: %d | output size: %d\n", bigint_size(prime), bigint_size(random_bigint), bigint_size( client_pubval ));
+		time_t time1 = time_now();
 		bigint_mod_exp ( base, prime, random_bigint, client_pubval, context->tmp);
+		time_t time2 = time_now();
+		DBGC(tls, "Calc time: %llu\n", time2 - time1);
 
 		for(i = 0; i < context->max_len; i++)
 		{
@@ -1323,6 +1326,10 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		{
 			DBGC(tls, "DH Client Param element %d: %d\n", i, key_xchg.client_pubval[i]);
 		}
+
+		bigint_t (context -> max_len) * server_pubval = ( (void *) context->server_pubval); // G^y % prime
+		bigint_t (context -> max_len) * premaster_secret_output = context -> premaster_secret;
+		bigint_mod_multiply( output, server_pubval, prime, premaster_secret_output, context->mult_tmp); 
 
 		memcpy(tls->dhe_pre_master_secret.pre_master_secret, context->premaster_secret, context->prime_size);
 		

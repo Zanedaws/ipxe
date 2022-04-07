@@ -219,7 +219,6 @@ struct tls_pre_master_secret {
 } __attribute__ (( packed ));
 
 struct tls_dhe_pre_master_secret {
-	uint16_t version;
 	uint8_t pre_master_secret[256];
 } __attribute__ (( packed ));
 
@@ -320,7 +319,6 @@ struct tls_connection {
 	struct tls_dhe_pre_master_secret dhe_pre_master_secret;
 	/** Master secret */
 	uint8_t master_secret[48];
-	uint8_t dhe_master_secret[256]; // size of dhe_secret
 	/** Server random bytes */
 	uint8_t server_random[32];
 	/** Client random bytes */
