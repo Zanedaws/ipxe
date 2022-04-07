@@ -641,7 +641,7 @@ static void tls_generate_master_secret ( struct tls_connection *tls ) {
 	{
 		tls_prf_label ( tls, &tls->dhe_pre_master_secret,
 			sizeof ( tls->pre_master_secret ), 
-			&tls->master, sizeof ( tls->master_secret ),
+			&tls->master_secret, sizeof ( tls->master_secret ),
 			"master_secret", 
 			&tls->client_random, sizeof ( tls->client_random ), 
 			&tls->server_random, sizeof ( tls->server_random ) );
@@ -3533,7 +3533,7 @@ int add_tls ( struct interface *xfer, const char *name,
 		goto err_random;
 	}
 	tls->pre_master_secret.version = htons ( tls->version );
-	tls->dhe_pre_master_secret.version = htons ( tls->version );
+	//tls->dhe_pre_master_secret = htons ( tls->version );
 	if ( ( rc = tls_generate_random ( tls, tls->pre_master_secret.random,
 		      ( sizeof ( tls->pre_master_secret.random ) ) ) ) != 0 ) {
 		goto err_random;
