@@ -1335,9 +1335,9 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 			DBGC(tls, "DH Client Param element %d: %d\n", i, key_xchg.client_pubval[i]);
 		}
 
-		//bigint_t (context -> max_len) * server_pubval = ( (void *) context->server_pubval); // G^y % prime
-		//bigint_t (context -> max_len) * premaster_secret_output = context -> premaster_secret;
-		//bigint_mod_multiply( output, server_pubval, prime, premaster_secret_output, context->mult_tmp); 
+		bigint_t (context -> max_len) * server_pubval = ( (void *) context->server_pubval); // G^y % prime
+		bigint_t (context -> max_len) * premaster_secret_output = ( ( void *) context -> premaster_secret);
+		bigint_mod_multiply( client_pubval, server_pubval, prime, premaster_secret_output, context->mult_tmp); 
 
 		memcpy(tls->dhe_pre_master_secret.pre_master_secret, context->premaster_secret, context->prime_size);
 		
