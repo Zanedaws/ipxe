@@ -1242,6 +1242,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 	struct tls_cipherspec *cipherspec = &tls->tx_cipherspec_pending;
 	struct pubkey_algorithm *pubkey = cipherspec->suite->pubkey;
 	size_t max_len = pubkey_max_len ( pubkey, cipherspec->pubkey_ctx );
+	uint16_t i;
 	if (cipherspec->suite->pubkey->name == "dhe")
 	{
 		DBGC(tls, "DHE cipher suite entered!\n");
@@ -1310,7 +1311,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		DBGC(tls, "prime size: %d | random size: %d | output size: %d\n", bigint_size(prime), bigint_size(random_bigint), bigint_size( client_pubval ));
 		bigint_mod_exp ( base, prime, random_bigint, client_pubval, context->tmp);
 
-		for(uint16_t i = 0; i < context->max_len; i++)
+		for(i = 0; i < context->max_len; i++)
 		{
 			DBGC(tls, "dh param bigint out: %x\n", client_pubval->element[i]);
 		}
@@ -1318,7 +1319,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		bigint_t ( context->max_len ) *client_pubval_bigint = ( ( void * ) context->client_dh_param );
 		bigint_done(client_pubval_bigint, key_xchg.client_pubval, context->prime_size);
 		
-		for(uint16_t i = 0; i < context->prime_size; i++)
+		for(i = 0; i < context->prime_size; i++)
 		{
 			DBGC(tls, "DH Client Param element %d: %d\n", i, key_xchg.client_pubval[i]);
 		}
