@@ -1263,12 +1263,20 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		uint32_t client_private_key[context->max_len];
 		for (uint16_t i = 0; i < context->max_len; i++)
 		{
+			//tls_generate_random
 			//client_private_key[i] = 0x00000000;
 			/*if (i == 63)
 			{
 				client_private_key[i] = 1;
 			}*/
-			client_private_key[i] = random();
+			if ( i < 16)
+			{
+				client_private_key[i] = random();
+			}
+			else
+			{
+				client_private_key[i] = 0;
+			}
 		}
 		context->random = client_private_key;
 		bigint_t (context -> max_len) * random_bigint = ( ( void * ) context->random ); // Random is good
