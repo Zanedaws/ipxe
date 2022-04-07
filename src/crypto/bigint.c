@@ -134,15 +134,15 @@ void bigint_mod_exp_raw ( const bigint_element_t *base0,
 			  const bigint_element_t *modulus0,
 			  const bigint_element_t *exponent0,
 			  bigint_element_t *result0,
-			  unsigned int size, unsigned int exponent_size,
+			  unsigned int size, unsigned int exponent_size, unsigned int modulus_size,
 			  void *tmp ) {
 	const bigint_t ( size ) __attribute__ (( may_alias )) *base =
 		( ( const void * ) base0 );
-	const bigint_t ( size ) __attribute__ (( may_alias )) *modulus =
+	const bigint_t ( modulus_size ) __attribute__ (( may_alias )) *modulus =
 		( ( const void * ) modulus0 );
 	const bigint_t ( exponent_size ) __attribute__ (( may_alias ))
 		*exponent = ( ( const void * ) exponent0 );
-	bigint_t ( size ) __attribute__ (( may_alias )) *result =
+	bigint_t ( modulus_size ) __attribute__ (( may_alias )) *result =
 		( ( void * ) result0 );
 	size_t mod_multiply_len = bigint_mod_multiply_tmp_len ( modulus );
 	struct {

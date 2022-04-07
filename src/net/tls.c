@@ -1259,23 +1259,60 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		/*if ((rc = dhe_generate_client_value(context)) != 0)
 			return rc;*/
 
-		uint32_t random_num = 0xabcabcab;
-		context->random = &random_num;
-		context->random_size = 1;
-		DBGC(tls, "Random used: %x\n", context->random[0]);
-		bigint_t ( context->random_size ) * random_bigint = ((void *) context->random); // this needs to be checked
+		uint32_t client_private_key[context->max_len];
+		for (uint16_t i = 0; i < context->max_len; i++)
+		{
+			//client_private_key[i] = 0x00000000;
+			/*if (i == 63)
+			{
+				client_private_key[i] = 1;
+			}*/
+			client_private_key[i] = random();
+		}
+		context->random = client_private_key;
+		bigint_t (context -> max_len) * random_bigint = ( ( void * ) context->random ); // Random is good
 
-		DBGC(tls, "random context out: %x | random bigint out: %x\n", context->random[0], random_bigint->element[0]);
+		DBGC(tls, "Random used:\n");
+		for (uint16_t i = 0; i < context->max_len; i++)
+		{
+			DBGC(tls, "%x ", random_bigint->element[i]);
+			if (!((i + 1) % 8))
+			{
+				DBGC(tls, "\n");
+			}
+		}
 		
-		bigint_t (context -> generator_size) * base = ( ( void * ) context->generator );
-		DBGC(tls, "generator context out: %x | generator bigint out: %x\n", context->generator[0], base->element[0]);
+		//bigint_t ( context->random_size ) * random_bigint = ((void *) context->random); // this needs to be checked
+
+		//DBGC(tls, "random context out: %x | random bigint out: %x\n", context->random[0], random_bigint->element[0]);
+		
+		bigint_t (context -> generator_size) * base = ( ( void * ) context->generator ); // Generator is good
 
 		bigint_t (context -> max_len) * prime = ( ( void * ) context->prime );
-		bigint_mod_exp ( base, prime, random_bigint, (bigint_t (context -> max_len) *) context->client_dh_param, context->tmp);
+
+		DBGC(tls, "Prime used:\n");
+		for (uint16_t i = 0; i < context->max_len; i++)
+		{
+			DBGC(tls, "%x ", prime->element[i]);
+			if (!((i + 1) % 8))
+			{
+				DBGC(tls, "\n");
+			}
+		}
+
+		bigint_t (context -> max_len) * client_pubval = ( ( void * ) context->client_dh_param);
 
 		for(uint16_t i = 0; i < context->max_len; i++)
 		{
-			DBGC(tls, "dh param bigint out: %x\n", context->client_dh_param[i]);
+			DBGC(tls, "(precalc) dh param bigint out: %x\n", /*context->client_dh_param[i]*/ client_pubval->element[i]);
+		}
+
+		DBGC(tls, "prime size: %d | random size: %d | output size: %d\n", bigint_size(prime), bigint_size(random_bigint), bigint_size( client_pubval ));
+		bigint_mod_exp ( base, prime, random_bigint, client_pubval, context->tmp);
+
+		for(uint16_t i = 0; i < context->max_len; i++)
+		{
+			DBGC(tls, "dh param bigint out: %x\n", client_pubval->element[i]);
 		}
 
 		bigint_t ( context->max_len ) *client_pubval_bigint = ( ( void * ) context->client_dh_param );
@@ -2150,6 +2187,7 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 
 	DBGC(tls, "TLS %p: Beginning context initializaiton with pubkey context size: %d\n", tls, cipherspec->suite->pubkey->ctxsize);
 
+
 	pubkey_init(cipherspec->suite->pubkey, cipherspec->pubkey_ctx, NULL, 0);
 
 	DBGC(tls, "TLS %p: Beginning server key exchange parsing\n", tls);
@@ -2166,20 +2204,44 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 
 	DBGC(tls, "TLS %p: Memcpy passed. Size1 is: %d Size2 is: %d Size is: %d\n", tls, size1, size2, size); //(0x0100)
 
-	uint8_t input_1[size];
+	/*uint8_t input_1[size];
 	for (i = 0; i < size; i++)
 	{
 		input_1[i] = (c_data + total_size_used)[i];
-	}
-
-	uint32_t input_u32[context->max_len]; // we were experiencing errors with bigint init
-	for (i = 0; i < context->max_len; i++)
+	}*/
+	
+	/*uint32_t input_u32[context->max_len]; // we were experiencing errors with bigint init 
+	for (i = 0; i < context->max_len; i++) // Prime is parsed correctly
 	{
 		input_u32[i] = (input_1[4 * i] << 24) | (input_1[4 * i + 1] << 16) | (input_1[4 * i + 2] << 8) | (input_1[4 * i + 3]);
-	}
+	}*/
+
+	bigint_init ( (bigint_t ( context->max_len ) * ) context->prime, c_data + total_size_used, size * 4);
 
 	//bigint_init ( ( (bigint_t ( context->max_len ) * ) context->prime), input_u32, size );
-	context->prime = input_u32;
+	DBGC(tls, "Prime used:\n");
+		for (uint16_t i = 0; i < context->max_len; i++)
+		{
+			DBGC(tls, "%x ", context->prime[i]);
+			if (!((i + 1) % 8))
+			{
+				DBGC(tls, "\n");
+			}
+		}
+
+	/*void * test_msg =  malloc (256);
+	bigint_t ( context -> max_len ) * test_big = ( ( void * ) context->prime);
+	bigint_done(test_big, test_msg,  256);
+
+	DBGC(tls, "Test finalize used:\n");
+	for (uint16_t i = 0; i < context->max_len; i++)
+	{
+		DBGC(tls, "%x ", ((uint32_t *)test_msg)[i]);
+		if (!((i + 1) % 8))
+		{
+			DBGC(tls, "\n");
+		}
+	}*/
 	//bigint_t (context->max_len) * primeTest = ((void *) context->prime);
 
 	total_size_used += size;
@@ -2203,7 +2265,7 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	total_size_used += size;
 	context->generator_size = size;
 	//bigint_t ( size ) *output_2 = ( ( void * ) context->generator );
-	bigint_init ( (bigint_t ( context->generator_size ) * ) context->generator, input_2, size );
+	bigint_init ( (bigint_t ( context->generator_size ) * ) context->generator, input_2, size * 4 );
 
 	// read pubval from data and assign
 	memcpy(&size1, c_data + total_size_used++, sizeof(size1));
@@ -2217,7 +2279,7 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	}
 	total_size_used += size;
 	//bigint_t ( context->max_len ) *output_3 = ( ( void * ) context->server_pubval );
-	bigint_init ( (bigint_t ( context->max_len ) *) context->server_pubval, input_3, size );
+	bigint_init ( (bigint_t ( context->max_len ) *) context->server_pubval, input_3, size * 4 );
 
 	//void * test = malloc(context->prime_size);
 	//bigint_t ( context -> max_len ) * server_pubval = ((void *) context -> server_pubval);

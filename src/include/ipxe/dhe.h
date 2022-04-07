@@ -36,10 +36,13 @@ struct dhe_context {
 	void *tmp;
 	/** Max length any value in context can have */
 	size_t max_len;
+	void * mult_tmp;
 	bigint_element_t * random;
 	unsigned int random_size;
 
 	void * premaster_secret;
+
+	int init;
 };
 
 /** RSA context size */

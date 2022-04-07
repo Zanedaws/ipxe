@@ -68,15 +68,18 @@ static void dhe_free ( struct dhe_context * context ) {
 
 static int dhe_alloc ( struct dhe_context *context, size_t prime_size ) {
 	unsigned int size = bigint_required_size ( prime_size );
-	bigint_t ( size ) * client_pubval;
-	bigint_t ( size ) * server_pubval;
-	size_t tmp_len = bigint_mod_exp_tmp_len ( client_pubval, server_pubval ); 
+	bigint_t ( size ) * client_private_val;
+	bigint_t ( size ) * prime;
+	size_t tmp_len = bigint_mod_exp_tmp_len ( client_private_val, prime ); 
+	size_t tmp2_len = bigint_mod_multiply_tmp_len ( prime );
 	struct {
 		bigint_t ( size ) client_pubval;
 		bigint_t ( size ) server_pubval;
 		bigint_t ( size ) prime;
 		bigint_t ( 1 ) generator; // generator is always 2
+		bigint_t ( size ) client_private_val;
 		uint8_t tmp[tmp_len];
+		uint8_t tmp2[tmp2_len];
 	} __attribute__ (( packed )) * dynamic;
 
 	dhe_free ( context );
@@ -91,8 +94,12 @@ static int dhe_alloc ( struct dhe_context *context, size_t prime_size ) {
 	context->generator = &dynamic->generator.element[0];
 	context->server_pubval = &dynamic->server_pubval.element[0];
 	context->client_dh_param = &dynamic->client_pubval.element[0];
+	context->random = &dynamic->client_private_val.element[0];
 	context->tmp = &dynamic->tmp;
+	context->mult_tmp = &dynamic->tmp2;
 	context->max_len = size;
+
+	context->init = 1;
 
 	return 0;
 }
@@ -127,20 +134,26 @@ static int dhe_init ( void * ctx, const void *key, size_t key_len ) { // For DHE
 int dhe_generate_client_value(void *ctx)
 {
 	struct dhe_context * context = ctx;
-	uint32_t random_num = random();
-	context->random = &random_num;
-	bigint_t ( bigint_required_size ( sizeof ( random_num ) ) ) * random_bigint = (void *) &random_num; // this needs to be checked
-	bigint_init(random_bigint, &random_num, sizeof(random_num));
+	uint16_t i;
+	uint32_t client_private_key[context->max_len];
+	for (i = 0; i < context->max_len; i++)
+	{
+		client_private_key[i] = random();
+	}
+
+	context->random = client_private_key;
+	bigint_t (context -> max_len) * random_bigint = ( ( void * ) context->random ); // this needs to be checked
+	//bigint_init(random_bigint, &random_num, sizeof(random_num));
 	
 	bigint_t (context -> generator_size) * base = ( ( void * ) context->generator );
 	bigint_t (context -> max_len) * prime = ( ( void * ) context->prime );
 	bigint_t (context -> max_len) * output = ( ( void * ) context->client_dh_param );
-	bigint_mod_exp ( base, prime, random_bigint, output, context->tmp);
+	bigint_mod_exp ( base, prime, random_bigint, output, context->tmp); // G^x % prime
 	//bigint_done (output, context->client_dh_param, context->prime_size);
 	
-	bigint_t (context -> max_len) * server_pubval = ( (void *) context->server_pubval);
+	bigint_t (context -> max_len) * server_pubval = ( (void *) context->server_pubval); // G^y % prime
 	bigint_t (context -> max_len) * premaster_secret_output = context -> premaster_secret;
-	bigint_mod_multiply( output, server_pubval, prime, premaster_secret_output, context->tmp);
+	bigint_mod_multiply( output, server_pubval, prime, premaster_secret_output, context->mult_tmp); 
 	//bigint_done(output, context->premaster_secret, context->prime_size);
 
 	return 0;
