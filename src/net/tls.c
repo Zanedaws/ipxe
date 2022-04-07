@@ -1312,7 +1312,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		time_t time1 = time_now();
 		bigint_mod_exp ( base, prime, random_bigint, client_pubval, context->tmp);
 		time_t time2 = time_now();
-		DBGC(tls, "Calc time: %d\n", time2 - time1);
+		DBGC(tls, "Calc time: %lld\n", time2 - time1);
 
 		for(i = 0; i < context->max_len; i++)
 		{
