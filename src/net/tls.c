@@ -1269,7 +1269,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 			{
 				client_private_key[i] = 1;
 			}*/
-			if ( i >= 32)
+			if ( i >= 48)
 			{
 				client_private_key[i] = random();
 			}
