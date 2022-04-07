@@ -641,7 +641,7 @@ static void tls_generate_master_secret ( struct tls_connection *tls ) {
 	{
 		tls_prf_label ( tls, &tls->dhe_pre_master_secret,
 			sizeof ( tls->pre_master_secret ), 
-			&tls->dhe_master_secret, sizeof ( tls->dhe_master_secret ),
+			&tls->master, sizeof ( tls->master_secret ),
 			"master_secret", 
 			&tls->client_random, sizeof ( tls->client_random ), 
 			&tls->server_random, sizeof ( tls->server_random ) );
@@ -1327,9 +1327,9 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 			DBGC(tls, "DH Client Param element %d: %d\n", i, key_xchg.client_pubval[i]);
 		}
 
-		bigint_t (context -> max_len) * server_pubval = ( (void *) context->server_pubval); // G^y % prime
-		bigint_t (context -> max_len) * premaster_secret_output = context -> premaster_secret;
-		bigint_mod_multiply( output, server_pubval, prime, premaster_secret_output, context->mult_tmp); 
+		//bigint_t (context -> max_len) * server_pubval = ( (void *) context->server_pubval); // G^y % prime
+		//bigint_t (context -> max_len) * premaster_secret_output = context -> premaster_secret;
+		//bigint_mod_multiply( output, server_pubval, prime, premaster_secret_output, context->mult_tmp); 
 
 		memcpy(tls->dhe_pre_master_secret.pre_master_secret, context->premaster_secret, context->prime_size);
 		
