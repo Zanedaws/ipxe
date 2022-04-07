@@ -43,7 +43,7 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
  * @v dst		Second input data and output data buffer
  * @v len		Length of data
  */
-static void cbc_xor ( const void *src, void *dst, size_t len ) {
+static void gcm_xor ( const void *src, void *dst, size_t len ) {
 	const uint32_t *srcl = src;
 	uint32_t *dstl = dst;
 	unsigned int i;
@@ -54,6 +54,21 @@ static void cbc_xor ( const void *src, void *dst, size_t len ) {
 	for ( i = 0 ; i < ( len / sizeof ( *srcl ) ) ; i++ )
 		dstl[i] ^= srcl[i];
 }
+/**
+ * GCM mult for hash function
+ *
+ * @v ctx
+ * @v src		Input data
+ */
+static void gcm_mult(void *ctx, const void *src){
+	// Need to make context for gcm where there is room for a 128-bit input vector as well as an ouput vector
+
+	int i, j;
+	
+
+
+}
+
 
 /**
  * Encrypt data
@@ -65,7 +80,7 @@ static void cbc_xor ( const void *src, void *dst, size_t len ) {
  * @v raw_cipher	Underlying cipher algorithm
  * @v cbc_ctx		CBC context
  */
-void cbc_encrypt ( void *ctx, const void *src, void *dst, size_t len,
+void gcm_encrypt ( void *ctx, const void *src, void *dst, size_t len,
 		   struct cipher_algorithm *raw_cipher, void *cbc_ctx ) {
 	size_t blocksize = raw_cipher->blocksize;
 
@@ -91,7 +106,7 @@ void cbc_encrypt ( void *ctx, const void *src, void *dst, size_t len,
  * @v raw_cipher	Underlying cipher algorithm
  * @v cbc_ctx		CBC context
  */
-void cbc_decrypt ( void *ctx, const void *src, void *dst, size_t len,
+void gcm_decrypt ( void *ctx, const void *src, void *dst, size_t len,
 		   struct cipher_algorithm *raw_cipher, void *cbc_ctx ) {
 	size_t blocksize = raw_cipher->blocksize;
 	uint8_t next_cbc_ctx[blocksize];
