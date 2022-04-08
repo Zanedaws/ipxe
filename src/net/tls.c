@@ -1166,6 +1166,8 @@ static int tls_send_client_hello ( struct tls_connection *tls ) {
 	memcpy ( hello.extensions.session_ticket.data, session->ticket,
 		 sizeof ( hello.extensions.session_ticket.data ) );
 
+	DBGC(tls, "Sending client hello msg!\n");
+
 	return tls_send_handshake ( tls, &hello, sizeof ( hello ) );
 }
 
@@ -1222,6 +1224,7 @@ static int tls_send_certificate ( struct tls_connection *tls ) {
 	}
 
 	/* Transmit record */
+	DBGC(tls, "Sending certificate msg!\n");
 	rc = tls_send_handshake ( tls, certificates,
 				  ( sizeof ( *certificates ) + len ) );
 
@@ -1281,7 +1284,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		context->random = client_private_key;
 		bigint_t (context -> max_len) * random_bigint = ( ( void * ) context->random ); // Random is good
 
-		DBGC(tls, "Random used:\n");
+		/*DBGC(tls, "Random used:\n");
 		for (uint16_t i = 0; i < context->max_len; i++)
 		{
 			DBGC(tls, "%x ", random_bigint->element[i]);
@@ -1289,7 +1292,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 			{
 				DBGC(tls, "\n");
 			}
-		}
+		}*/
 		
 		//bigint_t ( context->random_size ) * random_bigint = ((void *) context->random); // this needs to be checked
 
@@ -1299,7 +1302,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 
 		bigint_t (context -> max_len) * prime = ( ( void * ) context->prime );
 
-		DBGC(tls, "Prime used:\n");
+		/*DBGC(tls, "Prime used:\n");
 		for (uint16_t i = 0; i < context->max_len; i++)
 		{
 			DBGC(tls, "%x ", prime->element[i]);
@@ -1307,14 +1310,9 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 			{
 				DBGC(tls, "\n");
 			}
-		}
+		}*/
 
 		bigint_t (context -> max_len) * client_pubval = ( ( void * ) context->client_dh_param);
-
-		for(uint16_t i = 0; i < context->max_len; i++)
-		{
-			DBGC(tls, "(precalc) dh param bigint out: %x\n", /*context->client_dh_param[i]*/ client_pubval->element[i]);
-		}
 
 		DBGC(tls, "prime size: %d | random size: %d | output size: %d\n", bigint_size(prime), bigint_size(random_bigint), bigint_size( client_pubval ));
 		time_t time1 = time_now();
@@ -1332,14 +1330,42 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		
 		for(i = 0; i < context->prime_size; i++)
 		{
-			DBGC(tls, "DH Client Param element %d: %d\n", i, key_xchg.client_pubval[i]);
+			DBGC(tls, "DH Client Param element %d: %x\n", i, key_xchg.client_pubval[i]);
 		}
 
 		bigint_t (context -> max_len) * server_pubval = ( (void *) context->server_pubval); // G^y % prime
 		bigint_t (context -> max_len) * premaster_secret_output = ( ( void *) context -> premaster_secret);
 		bigint_mod_multiply( client_pubval, server_pubval, prime, premaster_secret_output, context->mult_tmp); 
 
-		memcpy(tls->dhe_pre_master_secret.pre_master_secret, context->premaster_secret, context->prime_size);
+		DBGC(tls, "Premaster bigint secret used:\n");
+		for (uint16_t i = 0; i < context->max_len; i++)
+		{
+			DBGC(tls, "%x ", premaster_secret_output->element[i]);
+			if (!((i + 1) % 8))
+			{
+				DBGC(tls, "\n");
+			}
+		}
+
+		bigint_done(premaster_secret_output, tls->dhe_pre_master_secret.pre_master_secret, context->prime_size); // Use bigint done instead of memcpy to reverse the order
+
+		//memcpy(tls->dhe_pre_master_secret.pre_master_secret, context->premaster_secret, context->prime_size);
+
+		tls_generate_master_secret(tls);
+
+		DBGC(tls, "Premaster secret used:\n");
+		for (uint16_t i = 0; i < context->prime_size; i++)
+		{
+			DBGC(tls, "%x", tls->dhe_pre_master_secret.pre_master_secret[i]);
+			if (!((i + 1) % 4))
+			{
+				DBGC(tls, " ");
+			}
+			if (!((i + 1) % 32))
+			{
+				DBGC(tls, "\n");
+			}
+		}
 		
 		memset ( &key_xchg, 0, sizeof ( key_xchg ) );
 		key_xchg.client_pubval_bytes = sizeof ( key_xchg.client_pubval ); // How to copy bytes into key_xchg?
@@ -1392,6 +1418,8 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		key_xchg.encrypted_pre_master_secret_len =
 			htons ( sizeof ( key_xchg.encrypted_pre_master_secret ) -
 				unused );
+
+		DBGC(tls, "Sending RSA client key exchange!\n");
 
 		return tls_send_handshake ( tls, &key_xchg,
 						( sizeof ( key_xchg ) - unused ) );
@@ -1477,6 +1505,8 @@ static int tls_send_certificate_verify ( struct tls_connection *tls ) {
 				unused );
 
 		/* Transmit record */
+
+		DBGC(tls, "Sending client verify msg!\n");
 		rc = tls_send_handshake ( tls, &certificate_verify,
 				   ( sizeof ( certificate_verify ) - unused ) );
 	}
@@ -1530,6 +1560,7 @@ static int tls_send_finished ( struct tls_connection *tls ) {
 		 sizeof ( finished.verify_data ) );
 
 	/* Transmit record */
+	DBGC(tls, "Sending finished msg!\n");
 	if ( ( rc = tls_send_handshake ( tls, &finished,
 					 sizeof ( finished ) ) ) != 0 )
 		return rc;
@@ -1788,7 +1819,10 @@ static int tls_new_server_hello ( struct tls_connection *tls,
 	} else {
 
 		/* Generate new master secret */
-		tls_generate_master_secret ( tls );
+		if (!tls->is_dhe)
+		{
+			tls_generate_master_secret ( tls );
+		}
 
 		/* Record new session ID, if present */
 		if ( hello_a->session_id_len &&
@@ -2711,6 +2745,23 @@ static int tls_send_plaintext ( struct tls_connection *tls, unsigned int type,
 	uint8_t mac[mac_len];
 	int rc;
 
+	const uint8_t * test = data;
+
+	DBGC(tls, "plaintext (len: %d) to send:\n", len);
+		for (uint16_t i = 0; i < len; i++)
+		{
+			DBGC(tls, "%x", test[i]);
+			if (!((i + 1) % 4))
+			{
+				DBGC(tls, " ");
+			}
+			if (!((i + 1) % 32))
+			{
+				DBGC(tls, "\n");
+			}
+		}
+	DBGC(tls, "\n");
+
 	/* Construct header */
 	plaintext_tlshdr.type = type;
 	plaintext_tlshdr.version = htons ( tls->version );
@@ -2736,8 +2787,6 @@ static int tls_send_plaintext ( struct tls_connection *tls, unsigned int type,
 		goto done;
 	}
 
-	DBGC(tls, "Plaintext assembled\n");
-
 	DBGC2 ( tls, "Sending plaintext data:\n" );
 	DBGC2_HD ( tls, plaintext, plaintext_len );
 
@@ -2760,8 +2809,6 @@ static int tls_send_plaintext ( struct tls_connection *tls, unsigned int type,
 		 cipher->ctxsize );
 	cipher_encrypt ( cipher, cipherspec->cipher_next_ctx, plaintext,
 			 iob_put ( ciphertext, plaintext_len ), plaintext_len );
-
-	DBGC(tls, "Ciphertext assembled\n");
 
 	/* Free plaintext as soon as possible to conserve memory */
 	free ( plaintext );
