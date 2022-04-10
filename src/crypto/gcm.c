@@ -54,6 +54,17 @@ static void gcm_xor ( const void *src, void *dst, size_t len ) {
 	for ( i = 0 ; i < ( len / sizeof ( *srcl ) ) ; i++ )
 		dstl[i] ^= srcl[i];
 }
+
+static void gcm_inc32(uint8_t *block)
+{
+	//incoming block is always 256 bits
+	int BLOCK_SIZE = 32;
+	uint32_t * input = (uint32_t *) block;
+	uint32_t val = block[(BLOCK_SIZE / 4) - 1];
+	val++;
+	block[(BLOCK_SIZE / 4) - 1] = val;
+}
+
 /**
  * GCM mult for hash function
  *
@@ -132,6 +143,47 @@ static void ghash(void *ctx, const void *src) {
 		gcm_xor(temp, ghash_out, BLOCK_SIZE);
 		gf_mult(ghash_out, hash_subkey, temp);
 		memcpy(ghash_out, temp, BLOCK_SIZE);
+	}
+
+}
+
+static void gctr(void * cipher, void * ctx, const uint8_t * nonce, const uint8_t * bit_string, size_t bit_string_len /* in bits */, uint8_t * output)
+{	
+	// https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
+	
+	const int BLOCK_SIZE = 32; //bytes
+	struct cipher_algorithm * aes = cipher;
+	uint8_t * output_pos = output;
+	uint8_t * bit_string_pos = bit_string;
+
+	if (bit_string_len == 0) 
+	{
+		return;
+	}
+
+	size_t n = bit_string_len / (BLOCK_SIZE * 8);
+	uint8_t counter_block[BLOCK_SIZE];
+
+	memcpy(counter_block, nonce, BLOCK_SIZE);
+
+	for (int i = 0; i < n; i++)
+	{
+		cipher_encrypt(aes, ctx, counter_block, output_pos, BLOCK_SIZE);
+		gcm_xor(output_pos, bit_string_pos, BLOCK_SIZE);
+		bit_string_pos += BLOCK_SIZE;
+		output_pos += BLOCK_SIZE;
+		gcm_inc32(counter_block);
+	}
+
+	size_t last = bit_string + bit_string_len - bit_string_pos;
+	uint8_t temp[BLOCK_SIZE];
+	if (last)
+	{
+		cipher_encrypt(aes, ctx, counter_block, temp, BLOCK_SIZE); // if error, make sure to pad incoming partial block
+		for (int i = 0; i < last; i++)
+		{
+			*output_pos++ = *bit_string_pos++ ^ temp[i];
+		}
 	}
 
 }
