@@ -101,8 +101,38 @@ static void gcm_mult(void *ctx, const void *src){
  * @v ctx		gcm context
  * @v src		Input data vector
  */
-static void ghash(void *ctx, const void *src){
-	
+static void ghash(void *ctx, const void *src) {
+	int BLOCK_SIZE = 32;
+	uint8_t * hash_subkey; // 256 bit block for hashsubkey
+	uint8_t * input; // input can be any number of blocks
+	int input_len; // size of input in bytes
+	uint8_t ghash_out[BLOCK_SIZE];
+	uint8_t temp[BLOCK_SIZE];
+
+	uint8_t * input_pos = input;
+
+	int input_blocks = input_len / BLOCK_SIZE;
+
+	for (int i = 0; i < input_blocks; i++)
+	{
+		gcm_xor(input_pos, ghash_out, BLOCK_SIZE);
+		input_pos += BLOCK_SIZE;
+
+		gf_mult(ghash_out, hash_subkey, temp);
+		memcpy(ghash_out, temp, BLOCK_SIZE);
+	}
+
+	if (input + input_len > input_pos) // checking for leftover data, not full block
+	{
+		size_t last = input + input_len - input_pos;
+
+		memcpy(temp, input_pos, last);
+		memset(temp + last, 0, sizeof(temp) - last);
+
+		gcm_xor(temp, ghash_out, BLOCK_SIZE);
+		gf_mult(ghash_out, hash_subkey, temp);
+		memcpy(ghash_out, temp, BLOCK_SIZE);
+	}
 
 }
 
