@@ -71,14 +71,40 @@ static void gcm_inc32(uint8_t *block)
  * @v ctx		context
  * @v src		Input data
  */
-static void gcm_mult(void *ctx, const void *src){
+static void gcm_mult(void *ctx, const uint8_t * x, const uint8_t * y){
 	// Need to make context for gcm where there is room for a 128-bit input vector as well as an ouput vector
-	x[16];
-	output[16];
+	// Calculates x * y
+	const int BLOCK_SIZE = 32;
+	uint8_t output[BLOCK_SIZE];
+	uint8_t y_copy[BLOCK_SIZE];
 
-	int i, j;
-	uchar lo, high , rem;
-	uint64_t zg, zl;
+	memset(output, 0, BLOCK_SIZE);
+	memcpy(y_copy, y, BLOCK_SIZE);
+
+	for (int i = 0; i < BLOCK_SIZE; i++) // By byte
+	{
+		for (int j = 7; j > -1; j--) // By bit
+		{
+			if(get_bit(x[i], j))
+			{
+				gcm_xor(y_copy, output, BLOCK_SIZE);
+			}
+
+			if(y_copy[BLOCK_SIZE - 1] & 1)
+			{
+				right_shift(y_copy, BLOCK_SIZE);
+				y_copy[0] ^= 0xe1; // Constant from NIST standards
+			}
+			else
+			{
+				right_shift(y_copy, BLOCK_SIZE);
+			}
+		}
+	}
+
+	/*int i, j;
+	uint8_t lo, high , rem;
+	//uint64_t zg, zl;
 
 	lo = (uchar)( x[15] & 0x0f);
 	hi = (uchar)(x[15]>> 4);
@@ -104,6 +130,33 @@ static void gcm_mult(void *ctx, const void *src){
         zh ^= (uint64_t) last4[rem] << 48;
         zh ^= ctx->HH[hi];
         zl ^= ctx->HL[hi];
+	}*/
+}
+
+static int get_bit(uint8_t byte, int index)
+{
+	// Returns the bit at specified index
+	// 0 being LSB, 7 being MSB
+	if (index > 7 || index < 0)
+	{
+		return -1;
+	}
+	uint8_t mask = 1;
+	return ((byte >> index) & mask);
+}
+
+static void right_shift(uint8_t * bits, size_t byte_len)
+{
+	// Right shifts the bit string by 1 bit
+	uint8_t append_bit = 0;
+	uint8_t floating_bit = 0;
+
+	for (int i = 0; i < (byte_len); i++)
+	{	
+		floating_bit = bits[i] & 0x01;
+		bits[i] >>= 1;
+		bits[i] |= (append_bit << 7);
+		append_bit = floating_bit;
 	}
 }
 /**
@@ -185,7 +238,15 @@ static void gctr(void * cipher, void * ctx, const uint8_t * nonce, const uint8_t
 			*output_pos++ = *bit_string_pos++ ^ temp[i];
 		}
 	}
+}
 
+static void gcm_init_hash_subkey(void * cipher, void * ctx, uint8_t * hash_subkey)
+{
+	struct cipher_algorithm * aes = cipher;
+	const int BLOCK_SIZE = 32;
+
+	memset(hash_subkey, 0, BLOCK_SIZE);
+	cipher_encrypt(aes, ctx, hash_subkey, hash_subkey, BLOCK_SIZE);
 }
 
 /**
