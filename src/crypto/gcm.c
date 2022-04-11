@@ -55,14 +55,41 @@ static void gcm_xor ( const void *src, void *dst, size_t len ) {
 		dstl[i] ^= srcl[i];
 }
 
+static uint8_t get_bit(uint8_t byte, int index)
+{
+	// Returns the bit at specified index
+	// 0 being LSB, 7 being MSB
+	if (index > 7 || index < 0)
+	{
+		return -1;
+	}
+	uint8_t mask = 1;
+	return ((byte >> index) & mask);
+}
+
+static void right_shift(uint8_t * bits, size_t byte_len)
+{
+	// Right shifts the bit string by 1 bit
+	uint8_t append_bit = 0;
+	uint8_t floating_bit = 0;
+
+	for (int i = 0; i < (byte_len); i++)
+	{	
+		floating_bit = bits[i] & 0x01;
+		bits[i] >>= 1;
+		bits[i] |= (append_bit << 7);
+		append_bit = floating_bit;
+	}
+}
+
 static void gcm_inc32(uint8_t *block)
 {
 	//incoming block is always 256 bits
 	int BLOCK_SIZE = 32;
 	uint32_t * input = (uint32_t *) block;
-	uint32_t val = block[(BLOCK_SIZE / 4) - 1];
+	uint32_t val = input[(BLOCK_SIZE / 4) - 1];
 	val++;
-	block[(BLOCK_SIZE / 4) - 1] = val;
+	input[(BLOCK_SIZE / 4) - 1] = val;
 }
 
 /**
@@ -71,7 +98,7 @@ static void gcm_inc32(uint8_t *block)
  * @v ctx		context
  * @v src		Input data
  */
-static void gcm_mult(void *ctx, const uint8_t * x, const uint8_t * y){
+static void gcm_mult(void *ctx __unused, const uint8_t * x, const uint8_t * y){
 	// Need to make context for gcm where there is room for a 128-bit input vector as well as an ouput vector
 	// Calculates x * y
 	const int BLOCK_SIZE = 32;
@@ -133,32 +160,6 @@ static void gcm_mult(void *ctx, const uint8_t * x, const uint8_t * y){
 	}*/
 }
 
-static int get_bit(uint8_t byte, int index)
-{
-	// Returns the bit at specified index
-	// 0 being LSB, 7 being MSB
-	if (index > 7 || index < 0)
-	{
-		return -1;
-	}
-	uint8_t mask = 1;
-	return ((byte >> index) & mask);
-}
-
-static void right_shift(uint8_t * bits, size_t byte_len)
-{
-	// Right shifts the bit string by 1 bit
-	uint8_t append_bit = 0;
-	uint8_t floating_bit = 0;
-
-	for (int i = 0; i < (byte_len); i++)
-	{	
-		floating_bit = bits[i] & 0x01;
-		bits[i] >>= 1;
-		bits[i] |= (append_bit << 7);
-		append_bit = floating_bit;
-	}
-}
 /**
  * GCM mult for hash function
  *
