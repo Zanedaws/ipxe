@@ -120,6 +120,7 @@ static int dhe_init ( void * ctx, const void *key, size_t key_len ) { // For DHE
 		goto err_alloc;
 	}
 
+	//test
 	memset ( context, 0, sizeof ( *context ));
 
 	if ( ( rc = dhe_alloc ( context, DHE_PRIME_LENGTH ) ) != 0 )
