@@ -85,7 +85,7 @@ static void right_shift(uint8_t * bits, size_t byte_len)
 static void gcm_inc32(uint8_t *block)
 {
 	//incoming block is always 256 bits
-	int BLOCK_SIZE = 32;
+	int BLOCK_SIZE = 16;
 	uint32_t * input = (uint32_t *) block;
 	uint32_t val = input[(BLOCK_SIZE / 4) - 1];
 	val++;
@@ -101,7 +101,7 @@ static void gcm_inc32(uint8_t *block)
 static void gcm_mult(void *ctx __unused, const uint8_t * x, const uint8_t * y){
 	// Need to make context for gcm where there is room for a 128-bit input vector as well as an ouput vector
 	// Calculates x * y
-	const int BLOCK_SIZE = 32;
+	const int BLOCK_SIZE = 16;
 	uint8_t output[BLOCK_SIZE];
 	uint8_t y_copy[BLOCK_SIZE];
 
@@ -167,8 +167,8 @@ static void gcm_mult(void *ctx __unused, const uint8_t * x, const uint8_t * y){
  * @v src		Input data vector
  */
 static void ghash(void *ctx, const void *src) {
-	int BLOCK_SIZE = 32;
-	uint8_t * hash_subkey; // 256 bit block for hashsubkey
+	int BLOCK_SIZE = 16;
+	uint8_t * hash_subkey; // 128 bit block for hashsubkey
 	uint8_t * input; // input can be any number of blocks
 	int input_len; // size of input in bytes
 	uint8_t ghash_out[BLOCK_SIZE];
@@ -205,7 +205,7 @@ static void gctr(void * cipher, void * ctx, const uint8_t * nonce, const uint8_t
 {	
 	// https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 	
-	const int BLOCK_SIZE = 32; //bytes
+	const int BLOCK_SIZE = 16; //bytes
 	struct cipher_algorithm * aes = cipher;
 	uint8_t * output_pos = output;
 	uint8_t * bit_string_pos = bit_string;
@@ -244,7 +244,7 @@ static void gctr(void * cipher, void * ctx, const uint8_t * nonce, const uint8_t
 static void gcm_init_hash_subkey(void * cipher, void * ctx, uint8_t * hash_subkey)
 {
 	struct cipher_algorithm * aes = cipher;
-	const int BLOCK_SIZE = 32;
+	const int BLOCK_SIZE = 16;
 
 	memset(hash_subkey, 0, BLOCK_SIZE);
 	cipher_encrypt(aes, ctx, hash_subkey, hash_subkey, BLOCK_SIZE);
