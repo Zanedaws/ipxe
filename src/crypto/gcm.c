@@ -82,14 +82,12 @@ static void right_shift(uint8_t * bits, size_t byte_len)
 	}
 }
 
-static void gcm_inc32(uint8_t *block)
+static void gcm_inc32(uint8_t *block, size_t blocksize)
 {
-	//incoming block is always 256 bits
-	int BLOCK_SIZE = 16;
 	uint32_t * input = (uint32_t *) block;
-	uint32_t val = input[(BLOCK_SIZE / 4) - 1];
+	uint32_t val = input[(blocksize / 4) - 1];
 	val++;
-	input[(BLOCK_SIZE / 4) - 1] = val;
+	input[(blocksize / 4) - 1] = val;
 }
 
 /**
@@ -98,33 +96,35 @@ static void gcm_inc32(uint8_t *block)
  * @v ctx		context
  * @v src		Input data
  */
-static void gcm_mult(void *ctx __unused, const uint8_t * x, const uint8_t * y){
+static void gcm_mult(void * cipher, void *ctx, const uint8_t * x, const uint8_t * y, uint8_t * output){
 	// Need to make context for gcm where there is room for a 128-bit input vector as well as an ouput vector
 	// Calculates x * y
-	const int BLOCK_SIZE = 16;
-	uint8_t output[BLOCK_SIZE];
-	uint8_t y_copy[BLOCK_SIZE];
+	struct cipher_algorithm * aes = cipher;
+	size_t blocksize = aes->blocksize;
 
-	memset(output, 0, BLOCK_SIZE);
-	memcpy(y_copy, y, BLOCK_SIZE);
+	//uint8_t temp[blocksize];
+	uint8_t y_copy[blocksize];
 
-	for (int i = 0; i < BLOCK_SIZE; i++) // By byte
+	memset(output, 0, blocksize);
+	memcpy(y_copy, y, blocksize);
+
+	for (int i = 0; i < blocksize; i++) // By byte
 	{
 		for (int j = 7; j > -1; j--) // By bit
 		{
 			if(get_bit(x[i], j))
 			{
-				gcm_xor(y_copy, output, BLOCK_SIZE);
+				gcm_xor(y_copy, output, blocksize);
 			}
 
-			if(y_copy[BLOCK_SIZE - 1] & 1)
+			if(y_copy[blocksize - 1] & 1)
 			{
-				right_shift(y_copy, BLOCK_SIZE);
+				right_shift(y_copy, blocksize);
 				y_copy[0] ^= 0xe1; // Constant from NIST standards
 			}
 			else
 			{
-				right_shift(y_copy, BLOCK_SIZE);
+				right_shift(y_copy, blocksize);
 			}
 		}
 	}
@@ -166,25 +166,29 @@ static void gcm_mult(void *ctx __unused, const uint8_t * x, const uint8_t * y){
  * @v ctx		gcm context
  * @v src		Input data vector
  */
-static void ghash(void *ctx, const void *src) {
-	int BLOCK_SIZE = 16;
-	uint8_t * hash_subkey; // 128 bit block for hashsubkey
-	uint8_t * input; // input can be any number of blocks
-	int input_len; // size of input in bytes
-	uint8_t ghash_out[BLOCK_SIZE];
-	uint8_t temp[BLOCK_SIZE];
+static void ghash(void * cipher, void *ctx, const uint8_t *input, const int input_len, uint8_t * output) {
+	struct cipher_algorithm * aes = cipher;
+	size_t blocksize = aes->blocksize;
 
+	// input can be any number of blocks
+	// size of input in bytes
+	//uint8_t ghash_out[blocksize];
+
+	uint8_t hash_subkey[blocksize]; 	 // 128 bit block for hashsubkey
+	uint8_t temp[blocksize];
 	uint8_t * input_pos = input;
+	int input_blocks = input_len / blocksize;
 
-	int input_blocks = input_len / BLOCK_SIZE;
+	gcm_init_hash_subkey(cipher, ctx, hash_subkey);
+	memset(output, 0, blocksize);
 
 	for (int i = 0; i < input_blocks; i++)
 	{
-		gcm_xor(input_pos, ghash_out, BLOCK_SIZE);
-		input_pos += BLOCK_SIZE;
+		gcm_xor(input_pos, output, blocksize);
+		input_pos += blocksize;
 
-		gf_mult(ghash_out, hash_subkey, temp);
-		memcpy(ghash_out, temp, BLOCK_SIZE);
+		gcm_mult(cipher, ctx, hash_subkey, output, temp);
+		memcpy(output, temp, blocksize);
 	}
 
 	if (input + input_len > input_pos) // checking for leftover data, not full block
@@ -194,9 +198,9 @@ static void ghash(void *ctx, const void *src) {
 		memcpy(temp, input_pos, last);
 		memset(temp + last, 0, sizeof(temp) - last);
 
-		gcm_xor(temp, ghash_out, BLOCK_SIZE);
-		gf_mult(ghash_out, hash_subkey, temp);
-		memcpy(ghash_out, temp, BLOCK_SIZE);
+		gcm_xor(temp, output, blocksize);
+		gf_mult(output, hash_subkey, temp);
+		memcpy(output, temp, blocksize);
 	}
 
 }
@@ -205,35 +209,36 @@ static void gctr(void * cipher, void * ctx, const uint8_t * nonce, const uint8_t
 {	
 	// https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 	
-	const int BLOCK_SIZE = 16; //bytes
 	struct cipher_algorithm * aes = cipher;
 	uint8_t * output_pos = output;
 	uint8_t * bit_string_pos = bit_string;
+
+	size_t blocksize = aes->blocksize;
 
 	if (bit_string_len == 0) 
 	{
 		return;
 	}
 
-	size_t n = bit_string_len / (BLOCK_SIZE * 8);
-	uint8_t counter_block[BLOCK_SIZE];
+	size_t n = bit_string_len / (blocksize * 8);
+	uint8_t counter_block[blocksize];
 
-	memcpy(counter_block, nonce, BLOCK_SIZE);
+	memcpy(counter_block, nonce, blocksize);
 
 	for (int i = 0; i < n; i++)
 	{
-		cipher_encrypt(aes, ctx, counter_block, output_pos, BLOCK_SIZE);
-		gcm_xor(output_pos, bit_string_pos, BLOCK_SIZE);
-		bit_string_pos += BLOCK_SIZE;
-		output_pos += BLOCK_SIZE;
-		gcm_inc32(counter_block);
+		cipher_encrypt(aes, ctx, counter_block, output_pos, blocksize);
+		gcm_xor(output_pos, bit_string_pos, blocksize);
+		bit_string_pos += blocksize;
+		output_pos += blocksize;
+		gcm_inc32(counter_block, blocksize);
 	}
 
 	size_t last = bit_string + bit_string_len - bit_string_pos;
-	uint8_t temp[BLOCK_SIZE];
+	uint8_t temp[blocksize];
 	if (last)
 	{
-		cipher_encrypt(aes, ctx, counter_block, temp, BLOCK_SIZE); // if error, make sure to pad incoming partial block
+		cipher_encrypt(aes, ctx, counter_block, temp, blocksize); // if error, make sure to pad incoming partial block
 		for (int i = 0; i < last; i++)
 		{
 			*output_pos++ = *bit_string_pos++ ^ temp[i];
@@ -244,10 +249,10 @@ static void gctr(void * cipher, void * ctx, const uint8_t * nonce, const uint8_t
 static void gcm_init_hash_subkey(void * cipher, void * ctx, uint8_t * hash_subkey)
 {
 	struct cipher_algorithm * aes = cipher;
-	const int BLOCK_SIZE = 16;
+	size_t blocksize = aes->blocksize;
 
-	memset(hash_subkey, 0, BLOCK_SIZE);
-	cipher_encrypt(aes, ctx, hash_subkey, hash_subkey, BLOCK_SIZE);
+	memset(hash_subkey, 0, blocksize);
+	cipher_encrypt(aes, ctx, hash_subkey, hash_subkey, blocksize);
 }
 
 /**
