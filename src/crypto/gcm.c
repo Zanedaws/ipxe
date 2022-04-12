@@ -30,6 +30,8 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #include <ipxe/crypto.h>
 #include <ipxe/gcm.h>
 
+//comment
+
 /** @file
  *
  * Galois Counter Mode
