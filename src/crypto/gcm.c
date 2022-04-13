@@ -310,7 +310,7 @@ static void gcm_gctr(void * cipher, void * ctx, const uint8_t * nonce, uint8_t *
  * @v cbc_ctx		CBC context
  */
 void gcm_encrypt ( void *ctx, const void *src, void *dst, size_t len,
-		   struct cipher_algorithm *raw_cipher, void *cbc_ctx ) {
+		   struct cipher_algorithm *raw_cipher, void *gcm_ctx ) {
 	size_t blocksize = raw_cipher->blocksize;
 
 	assert ( ( len % blocksize ) == 0 );
