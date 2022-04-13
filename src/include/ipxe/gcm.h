@@ -58,6 +58,9 @@ extern void gcm_decrypt ( void *ctx, const void *src, void *dst,
  * @v _raw_context	Context structure for the underlying cipher
  * @v _blocksize	Cipher block size
  */
+
+// GCM_CIPHER ( aes_gcm, aes_gcm_algorithm,  aes_algorithm, struct aes_context, AES_BLOCKSIZE );
+
 #define GCM_CIPHER( _gcm_name, _gcm_cipher, _raw_cipher, _raw_context,	\
 		    _blocksize )					\
 struct _gcm_name ## _context {						\

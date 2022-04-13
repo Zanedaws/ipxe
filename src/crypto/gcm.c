@@ -29,6 +29,7 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #include <assert.h>
 #include <ipxe/crypto.h>
 #include <ipxe/gcm.h>
+#include <ipxe/aes.h>
 
 /** @file
  *
@@ -99,8 +100,9 @@ static void gcm_init_hash_subkey(void * cipher, void * ctx, uint8_t * hash_subke
 	cipher_encrypt(aes, ctx, hash_subkey, hash_subkey, blocksize);
 }
 
-static void gcm_create_j0(void * cipher, void * ctx, uint8_t * hash_subkey, uint8_t * j0, size_t blocksize)
+static void gcm_create_j0(void * ctx, uint8_t * hash_subkey, uint8_t * j0, size_t blocksize)
 {
+	struct aes_gcm_context * context = ctx;
 	uint8_t * iv;
 	size_t iv_len;
 
@@ -115,22 +117,31 @@ static void gcm_create_j0(void * cipher, void * ctx, uint8_t * hash_subkey, uint
 	else
 	{
 		memset(j0, 0, blocksize);
-		ghash(cipher, ctx, hash_subkey, iv, iv_len, j0);
+		ghash(ctx, hash_subkey, iv, iv_len, j0, blocksize);
 		memset(len_buffer, 0, 8);
 		uint32_t iv_bits = iv_len * 8;
 		memcpy(len_buffer + 12, &iv_bits, sizeof(iv_bits)); 
-		ghash(cipher, ctx, hash_subkey, len_buffer, sizeof(len_buffer), j0);
+		ghash(ctx, hash_subkey, len_buffer, sizeof(len_buffer), j0, blocksize);
 	}
 }
 
-static void gcm_create_s(void * cipher, void * ctx, uint8_t * hash_subkey, uint8_t * auth_data, size_t aad_len, uint8_t * ciphertext, size_t ciphertext_len, uint8_t * s, size_t blocksize)
+static void gcm_create_s(void * ctx, uint8_t * hash_subkey, uint8_t * auth_data, size_t aad_len, uint8_t * ciphertext, size_t ciphertext_len, uint8_t * s, size_t blocksize)
 {
 	uint8_t len_buffer[blocksize]; 
 
 	// need to check for padding of aad
 	memset(s, 0, blocksize);
-	ghash(cipher, ctx, hash_subkey, auth_data, aad_len, s);
-	ghash(cipher, ctx, hash_subkey, ciphertext, ciphertext_len, s);
+
+	if (aad_len)
+	{
+		size_t pad_bytes = blocksize - (aad_len % blocksize);
+		uint8_t new_aad[aad_len + pad_bytes];
+		memset(new_aad, 0, aad_len + pad_bytes);
+		memcpy(new_aad, auth_data, aad_len);
+		ghash(ctx, hash_subkey, new_aad, aad_len + pad_bytes, s, blocksize); // is length of aad passed into ghash orig length or padded length?
+	}
+
+	ghash(ctx, hash_subkey, ciphertext, ciphertext_len, s, blocksize);
 
 	memset(len_buffer, 0, 4);
 	uint32_t aad_bits = aad_len * 8;
@@ -140,7 +151,7 @@ static void gcm_create_s(void * cipher, void * ctx, uint8_t * hash_subkey, uint8
 	uint32_t cipher_bits = ciphertext_len * 8;
 	memcpy(len_buffer + 12, &cipher_bits, sizeof(cipher_bits)); 
 
-	ghash(cipher, ctx, hash_subkey, len_buffer, sizeof(len_buffer), s);
+	ghash(ctx, hash_subkey, len_buffer, sizeof(len_buffer), s, blocksize);
 }
 
 /**
@@ -149,12 +160,9 @@ static void gcm_create_s(void * cipher, void * ctx, uint8_t * hash_subkey, uint8
  * @v ctx		context
  * @v src		Input data
  */
-static void gcm_mult(void * cipher, void *ctx __unused, const uint8_t * x, const uint8_t * y, uint8_t * output){
+static void gcm_mult(const uint8_t * x, const uint8_t * y, uint8_t * output, size_t blocksize){
 	// Need to make context for gcm where there is room for a 128-bit input vector as well as an ouput vector
 	// Calculates x * y
-	struct cipher_algorithm * aes = cipher;
-	size_t blocksize = aes->blocksize;
-
 	//uint8_t temp[blocksize];
 	uint8_t y_copy[blocksize];
 
@@ -181,36 +189,6 @@ static void gcm_mult(void * cipher, void *ctx __unused, const uint8_t * x, const
 			}
 		}
 	}
-
-	/*int i, j;
-	uint8_t lo, high , rem;
-	//uint64_t zg, zl;
-
-	lo = (uchar)( x[15] & 0x0f);
-	hi = (uchar)(x[15]>> 4);
-	zh = ctx->HH[lo];
-	zl = ctx->HL[lo];
-
-
-	for( i = 15; i >= 0; i-- ) {
-        lo = (uchar) ( x[i] & 0x0f );
-        hi = (uchar) ( x[i] >> 4 );
-
-		if( i != 15 ) {
-            rem = (uchar) ( zl & 0x0f );
-            zl = ( zh << 60 ) | ( zl >> 4 );
-            zh = ( zh >> 4 );
-            zh ^= (uint64_t) last4[rem] << 48;
-            zh ^= ctx->HH[lo];
-            zl ^= ctx->HL[lo];
-        }
-        rem = (uchar) ( zl & 0x0f );
-        zl = ( zh << 60 ) | ( zl >> 4 );
-        zh = ( zh >> 4 );
-        zh ^= (uint64_t) last4[rem] << 48;
-        zh ^= ctx->HH[hi];
-        zl ^= ctx->HL[hi];
-	}*/
 }
 
 /**
@@ -219,9 +197,7 @@ static void gcm_mult(void * cipher, void *ctx __unused, const uint8_t * x, const
  * @v ctx		gcm context
  * @v src		Input data vector
  */
-static void ghash(void * cipher, void *ctx, uint8_t * hash_subkey, const uint8_t *input, const int input_len, uint8_t * output) {
-	struct cipher_algorithm * aes = cipher;
-	size_t blocksize = aes->blocksize;
+static void ghash(void *ctx, uint8_t * hash_subkey, const uint8_t *input, const int input_len, uint8_t * output, size_t blocksize) {
 
 	// input can be any number of blocks
 	// size of input in bytes
@@ -238,7 +214,7 @@ static void ghash(void * cipher, void *ctx, uint8_t * hash_subkey, const uint8_t
 		gcm_xor(input_pos, output, blocksize);
 		input_pos += blocksize;
 
-		gcm_mult(cipher, ctx, hash_subkey, output, temp);
+		gcm_mult(hash_subkey, output, temp, blocksize);
 		memcpy(output, temp, blocksize);
 	}
 
@@ -250,13 +226,13 @@ static void ghash(void * cipher, void *ctx, uint8_t * hash_subkey, const uint8_t
 		memset(temp + last, 0, sizeof(temp) - last);
 
 		gcm_xor(temp, output, blocksize);
-		gcm_mult(cipher, ctx, output, hash_subkey, temp);
+		gcm_mult(output, hash_subkey, temp, blocksize);
 		memcpy(output, temp, blocksize);
 	}
 
 }
 
-static void gcm_gctr(void * cipher, void * ctx, const uint8_t * nonce, uint8_t * bit_string, size_t bit_string_len /* in bits */, uint8_t * output)
+static void gcm_gctr(void * cipher, void * ctx, const uint8_t * nonce, uint8_t * bit_string, size_t bit_string_len, uint8_t * output)
 {	
 	// https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 	
@@ -271,7 +247,7 @@ static void gcm_gctr(void * cipher, void * ctx, const uint8_t * nonce, uint8_t *
 		return;
 	}
 
-	size_t n = bit_string_len / (blocksize * 8);
+	size_t n = bit_string_len / blocksize;
 	uint8_t counter_block[blocksize];
 
 	memcpy(counter_block, nonce, blocksize);
@@ -307,36 +283,70 @@ static void gcm_gctr(void * cipher, void * ctx, const uint8_t * nonce, uint8_t *
  * @v raw_cipher	Underlying cipher algorithm
  * @v cbc_ctx		CBC context
  */
-void gcm_encrypt ( void *ctx, const void *src, void *dst, size_t len,
-		   struct cipher_algorithm *raw_cipher, void *cbc_ctx ) {
-	size_t blocksize = raw_cipher->blocksize;
-
-	assert ( ( len % blocksize ) == 0 );
+void gcm_encrypt_aek ( struct cipher_algorithm *raw_cipher, void *ctx, const void * src, size_t len, void * dst, uint8_t * iv, uint8_t * aad, size_t aad_len, size_t blocksize ) {
+	
+	struct aes_context * context = ctx;
 
 	// inputs;
-	uint8_t * key;
+	uint8_t * key = context->encrypt.key;
 	size_t key_len;
-	uint8_t * iv;
-	size_t iv_len;
+
+	switch ( context->rounds ) {
+	case ( 11 ) :
+		key_len = 128 / 8;
+		break;
+	case ( 13 ) :
+		key_len = 192 / 8;
+		break;
+	case ( 15 ) :
+		key_len = 256 / 8;
+		break;
+	default:
+		key_len = -1;
+	}
+
+	// PT -> GCM -> (C, T)
+	// Output: [(C0, T0), (C1, T1), ...]
+
+	//uint8_t * iv = (uint8_t *) init_vec;
+	size_t iv_len = blocksize;
+
 	uint8_t * add_auth_data;
 	size_t aad_len;
 
 	// outputs
-	uint8_t * tag;
-	uint8_t * ciphertext;
-	size_t ciphertext_len;
+	uint8_t tag[blocksize];
+	uint8_t ciphertext[blocksize];
+	size_t ciphertext_len = blocksize;
 
 	uint8_t hash_subkey[blocksize];
 	uint8_t j0[blocksize];
 	uint8_t s[blocksize];
 
 	gcm_init_hash_subkey(raw_cipher, ctx, hash_subkey);
-	gcm_create_j0(raw_cipher, ctx, hash_subkey, j0, blocksize);
+	gcm_create_j0(ctx, hash_subkey, j0, blocksize);
 
 	gcm_inc32(j0, blocksize);
 	gcm_gctr(raw_cipher, ctx, j0, src, len, ciphertext);
-	gcm_create_s(raw_cipher, ctx, hash_subkey, add_auth_data, aad_len, ciphertext, ciphertext_len, s, blocksize);
+	gcm_create_s(ctx, hash_subkey, add_auth_data, aad_len, ciphertext, ciphertext_len, s, blocksize);
 	gcm_gctr(raw_cipher, ctx, j0, s, sizeof(s), tag);
+}
+
+void gcm_encrypt ( void *ctx, const void *src, void *dst, size_t len,
+		   struct cipher_algorithm *raw_cipher, void *gcm_ctx )
+{
+	size_t blocksize = raw_cipher->blocksize;
+	struct aes_context * context = ctx;
+
+	assert ( ( len % blocksize ) == 0 );
+
+	while (len)
+	{
+		gcm_encrypt_aek(raw_cipher, ctx, src, len, dst, gcm_ctx, context->aad, context->aad_len, blocksize);
+		dst += blocksize;
+		src += blocksize;
+		len -= blocksize;
+	}
 }
 
 /**
