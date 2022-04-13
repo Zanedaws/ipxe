@@ -285,17 +285,9 @@ static void gcm_gctr(void * cipher, void * ctx, const uint8_t * nonce, uint8_t *
  * @v raw_cipher	Underlying cipher algorithm
  * @v cbc_ctx		CBC context
  */
-<<<<<<< HEAD
 void gcm_encrypt_aek ( struct cipher_algorithm *raw_cipher, void *ctx, const void * src, size_t len, void * dst, uint8_t * iv, uint8_t * aad, size_t aad_len, size_t blocksize ) {
 	
 	struct aes_context * context = ctx;
-=======
-void gcm_encrypt ( void *ctx, const void *src, void *dst, size_t len,
-		   struct cipher_algorithm *raw_cipher, void *gcm_ctx ) {
-	size_t blocksize = raw_cipher->blocksize;
-
-	assert ( ( len % blocksize ) == 0 );
->>>>>>> 7626c2c47497f6004165b6472f4c5c81b63cc0be
 
 	// inputs;
 	uint8_t * key = context->encrypt.key;
