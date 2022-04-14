@@ -62,7 +62,7 @@ extern void gcm_decrypt ( void *ctx, const void *src, void *dst,
 		    _blocksize )					\
 struct _gcm_name ## _context {						\
 	_raw_context raw_ctx;						\
-	uint8_t gcm_ctx[_blocksize];					\
+	uint8_t gcm_ctx[12];					\
 };									\
 static int _gcm_name ## _setkey ( void *ctx, const void *key,		\
 				  size_t keylen ) {			\
