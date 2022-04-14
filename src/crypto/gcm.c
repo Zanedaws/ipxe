@@ -289,7 +289,7 @@ void gcm_encrypt_aek ( struct cipher_algorithm *raw_cipher, void *ctx, const voi
 	// Output: [(C0, T0), (C1, T1), ...]
 
 	//uint8_t * iv = (uint8_t *) init_vec;
-	size_t iv_len = blocksize;
+	size_t iv_len = 12;
 
 	// outputs
 	uint8_t tag[blocksize];
@@ -323,6 +323,34 @@ void gcm_encrypt_aek ( struct cipher_algorithm *raw_cipher, void *ctx, const voi
 
 }
 
+int gcm_decrypt_adk ( struct cipher_algorithm *raw_cipher, void *ctx, const void * src, size_t len, void * dst, uint8_t * iv, uint8_t * aad, size_t aad_len, size_t blocksize, uint8_t * tag_in )
+{
+	size_t iv_len = 12;
+
+	// outputs
+	uint8_t tag[blocksize];
+	uint8_t ciphertext[blocksize];
+	size_t ciphertext_len = blocksize;
+
+	uint8_t hash_subkey[blocksize];
+	uint8_t j0[blocksize];
+	uint8_t s[blocksize];
+
+	gcm_init_hash_subkey(raw_cipher, ctx, hash_subkey);
+	gcm_create_j0(hash_subkey, iv, iv_len, j0, blocksize);
+	gcm_inc32(j0, blocksize);
+	gcm_gctr(raw_cipher, ctx, j0, src, len, dst);
+	gcm_create_s(hash_subkey, aad, aad_len, src, len, s, blocksize);
+	gcm_gctr(raw_cipher, ctx, j0, s, sizeof(s), tag);
+
+	if (memcmp(tag, tag_in, blocksize) != 0)
+	{
+		return -1;
+	}
+
+	return 0;
+}
+
 void gcm_encrypt ( void *ctx, const void *src, void *dst, size_t len,
 			struct cipher_algorithm *raw_cipher, void *gcm_ctx )
 {
@@ -351,19 +379,17 @@ void gcm_encrypt ( void *ctx, const void *src, void *dst, size_t len,
  * @v cbc_ctx		CBC context
  */
 void gcm_decrypt ( void *ctx, const void *src, void *dst, size_t len,
-		   struct cipher_algorithm *raw_cipher, void *cbc_ctx ) {
+		   struct cipher_algorithm *raw_cipher, void *gcm_ctx ) {
 	size_t blocksize = raw_cipher->blocksize;
-	uint8_t next_cbc_ctx[blocksize];
 
 	assert ( ( len % blocksize ) == 0 );
 
+	struct aes_context * context = ctx;
+
 	while ( len ) {
-		memcpy ( next_cbc_ctx, src, blocksize );
-		cipher_decrypt ( raw_cipher, ctx, src, dst, blocksize );
-		gcm_xor ( cbc_ctx, dst, blocksize );
-		memcpy ( cbc_ctx, next_cbc_ctx, blocksize );
+		gcm_decrypt_adk(raw_cipher, ctx, src, len, dst, gcm_ctx, context->aad, context->aad_len, blocksize, src + blocksize);
 		dst += blocksize;
-		src += blocksize;
+		src += (2 * blocksize);
 		len -= blocksize;
 	}
 }
