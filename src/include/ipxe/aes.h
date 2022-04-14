@@ -39,6 +39,8 @@ struct aes_context {
 	struct aes_round_keys decrypt;
 	/** Number of rounds */
 	unsigned int rounds;
+	void * aad;
+	size_t aad_len;
 };
 
 /** AES context size */

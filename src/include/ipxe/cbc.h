@@ -58,8 +58,11 @@ extern void cbc_decrypt ( void *ctx, const void *src, void *dst,
  * @v _raw_context	Context structure for the underlying cipher
  * @v _blocksize	Cipher block size
  */
+
+// CBC_CIPHER ( aes_cbc, aes_cbc_algorithm, aes_algorithm, struct aes_context, AES_BLOCKSIZE );
+
 #define CBC_CIPHER( _cbc_name, _cbc_cipher, _raw_cipher, _raw_context,	\
-		    _blocksize )					\
+			_blocksize )					\
 struct _cbc_name ## _context {						\
 	_raw_context raw_ctx;						\
 	uint8_t cbc_ctx[_blocksize];					\
