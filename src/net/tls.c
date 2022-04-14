@@ -825,9 +825,9 @@ static int tls_set_cipher ( struct tls_connection *tls,
 		return -ENOMEM_CONTEXT;
 	}
 
-	DBGC( tls, "TLS %p: Pubkey context size: %d\n", tls, pubkey->ctxsize);
-	DBGC( tls, "TLS %p: Cipher context size: %d\n", tls, cipher->ctxsize);
-	DBGC( tls, "TLS %p: Digest context size: %d\n", tls, digest->ctxsize);
+	DBGC( tls, "TLS %p: Pubkey context size: %ld\n", tls, pubkey->ctxsize);
+	DBGC( tls, "TLS %p: Cipher context size: %ld\n", tls, cipher->ctxsize);
+	DBGC( tls, "TLS %p: Digest context size: %ld\n", tls, digest->ctxsize);
 
 
 	/* Assign storage */
@@ -1248,7 +1248,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		DBGC(tls, "DHE cipher suite entered!\n");
 		// diffieHellman Message
 		struct dhe_context * context = cipherspec->pubkey_ctx;
-		DBGC(tls, "TLS %p: Max size: %d, Prime size: %d\n", tls, max_len, context->prime_size);
+		DBGC(tls, "TLS %p: Max size: %ld, Prime size: %ld\n", tls, max_len, context->prime_size);
 
 		struct {
 			uint32_t type_length;
@@ -2244,7 +2244,7 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	for(i = 0; i < size; i++)
 	{
 		signature[i] = (c_data + total_size_used)[i];
-	//	DBGC(tls, "Signature byte %d: %d\n", i, signature[i]);
+		DBGC(tls, "Signature byte %d: %d\n", i, signature[i]);
 	}
 	total_size_used += size;
 
