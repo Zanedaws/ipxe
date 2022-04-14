@@ -23,7 +23,7 @@ struct dhe_context {
 	/** DHE Prime */
     bigint_element_t * prime;
 	/** Number of elements in prime*/
-	unsigned int prime_size;
+	size_t prime_size;
 	/** DHE Generator from server */
     bigint_element_t * generator;
 	/** Generator size */

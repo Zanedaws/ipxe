@@ -825,9 +825,9 @@ static int tls_set_cipher ( struct tls_connection *tls,
 		return -ENOMEM_CONTEXT;
 	}
 
-	DBGC( tls, "TLS %p: Pubkey context size: %d\n", tls, pubkey->ctxsize);
-	DBGC( tls, "TLS %p: Cipher context size: %d\n", tls, cipher->ctxsize);
-	DBGC( tls, "TLS %p: Digest context size: %d\n", tls, digest->ctxsize);
+	DBGC( tls, "TLS %p: Pubkey context size: %zu\n", tls, pubkey->ctxsize);
+	DBGC( tls, "TLS %p: Cipher context size: %zu\n", tls, cipher->ctxsize);
+	DBGC( tls, "TLS %p: Digest context size: %zu\n", tls, digest->ctxsize);
 
 
 	/* Assign storage */
@@ -1248,7 +1248,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		DBGC(tls, "DHE cipher suite entered!\n");
 		// diffieHellman Message
 		struct dhe_context * context = cipherspec->pubkey_ctx;
-		DBGC(tls, "TLS %p: Max size: %d, Prime size: %d\n", tls, max_len, context->prime_size);
+		DBGC(tls, "TLS %p: Max size: %zu, Prime size: %zu\n", tls, max_len, context->prime_size);
 
 		struct {
 			uint32_t type_length;
@@ -2149,11 +2149,11 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	//if ( ( rc = pubkey_init ( pubkey, ctx, key->data, key->len ) ) != 0 ) {
 	uint16_t i = 0;
 
-	DBGC(tls, "TLS %p: Beginning context initializaiton with pubkey context size: %d\n", tls, cipherspec->suite->pubkey->ctxsize);
+	//DBGC(tls, "TLS %p: Beginning context initializaiton with pubkey context size: %d\n", tls, cipherspec->suite->pubkey->ctxsize);
 
 	pubkey_init(cipherspec->suite->pubkey, cipherspec->pubkey_ctx, NULL, 0);
 
-	DBGC(tls, "TLS %p: Beginning server key exchange parsing\n", tls);
+	//DBGC(tls, "TLS %p: Beginning server key exchange parsing\n", tls);
 
 	struct dhe_context * context = cipherspec->pubkey_ctx;
 
@@ -2165,7 +2165,7 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	memcpy(&size2, c_data + total_size_used++, sizeof(size2));
 	size = (size1 << 8) | size2;
 
-	DBGC(tls, "TLS %p: Memcpy passed. Size1 is: %d Size2 is: %d Size is: %d\n", tls, size1, size2, size); //(0x0100)
+	//DBGC(tls, "TLS %p: Memcpy passed. Size1 is: %d Size2 is: %d Size is: %d\n", tls, size1, size2, size); //(0x0100)
 
 	uint8_t input_1[size];
 	for (i = 0; i < size; i++)
@@ -2194,7 +2194,7 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	memcpy(&size2, c_data + total_size_used++, sizeof(size2));
 	size = (size1 << 8) | size2;
 
-	DBGC(tls, "TLS %p: Generator size: %d\n", tls, size);
+	//DBGC(tls, "TLS %p: Generator size: %d\n", tls, size);
 
 	uint8_t input_2[size];
 	for(i = 0; i < size; i++)
