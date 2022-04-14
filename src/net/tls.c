@@ -1246,6 +1246,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 	struct pubkey_algorithm *pubkey = cipherspec->suite->pubkey;
 	size_t max_len = pubkey_max_len ( pubkey, cipherspec->pubkey_ctx );
 	uint16_t i;
+	uint16_t rc;
 	if (cipherspec->suite->pubkey->name == "dhe")
 	{
 		DBGC(tls, "DHE cipher suite entered!\n");
@@ -1352,11 +1353,27 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		//memcpy(tls->dhe_pre_master_secret.pre_master_secret, context->premaster_secret, context->prime_size);
 
 		tls_generate_master_secret(tls);
+		if ( ( rc = tls_generate_keys ( tls ) ) != 0 )
+			return rc;
 
 		DBGC(tls, "Premaster secret used:\n");
 		for (uint16_t i = 0; i < context->prime_size; i++)
 		{
 			DBGC(tls, "%x", tls->dhe_pre_master_secret.pre_master_secret[i]);
+			if (!((i + 1) % 4))
+			{
+				DBGC(tls, " ");
+			}
+			if (!((i + 1) % 32))
+			{
+				DBGC(tls, "\n");
+			}
+		}
+
+		DBGC(tls, "Master secret used:\n");
+		for (uint16_t i = 0; i < 48; i++)
+		{
+			DBGC(tls, "%x", tls->master_secret);
 			if (!((i + 1) % 4))
 			{
 				DBGC(tls, " ");
