@@ -825,9 +825,9 @@ static int tls_set_cipher ( struct tls_connection *tls,
 		return -ENOMEM_CONTEXT;
 	}
 
-	DBGC( tls, "TLS %p: Pubkey context size: %lu\n", tls, pubkey->ctxsize);
-	DBGC( tls, "TLS %p: Cipher context size: %lu\n", tls, cipher->ctxsize);
-	DBGC( tls, "TLS %p: Digest context size: %lu\n", tls, digest->ctxsize);
+	DBGC( tls, "TLS %p: Pubkey context size: %u\n", tls, pubkey->ctxsize);
+	DBGC( tls, "TLS %p: Cipher context size: %u\n", tls, cipher->ctxsize);
+	DBGC( tls, "TLS %p: Digest context size: %u\n", tls, digest->ctxsize);
 
 
 	/* Assign storage */
