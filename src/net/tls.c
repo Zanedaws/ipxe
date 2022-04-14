@@ -1248,7 +1248,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		DBGC(tls, "DHE cipher suite entered!\n");
 		// diffieHellman Message
 		struct dhe_context * context = cipherspec->pubkey_ctx;
-		DBGC(tls, "TLS %p: Max size: %ld, Prime size: %ld\n", tls, max_len, context->prime_size);
+		DBGC(tls, "TLS %p: Max size: %zu, Prime size: %zu\n", tls, max_len, context->prime_size);
 
 		struct {
 			uint32_t type_length;
