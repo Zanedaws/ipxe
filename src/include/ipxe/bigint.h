@@ -232,10 +232,11 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
  */
 #define bigint_mod_exp( base, modulus, exponent, result, tmp ) do {	\
 	unsigned int size = bigint_size (base);				\
+	unsigned int modulus_size = bigint_size (modulus);	\
 	unsigned int exponent_size = bigint_size (exponent);		\
 	bigint_mod_exp_raw ( (base)->element, (modulus)->element,	\
 			     (exponent)->element, (result)->element,	\
-			     size, exponent_size, tmp );		\
+			     size, exponent_size, modulus_size, tmp );		\
 	} while ( 0 )
 
 /**
@@ -295,7 +296,7 @@ void bigint_mod_exp_raw ( const bigint_element_t *base0,
 			  const bigint_element_t *modulus0,
 			  const bigint_element_t *exponent0,
 			  bigint_element_t *result0,
-			  unsigned int size, unsigned int exponent_size,
+			  unsigned int size, unsigned int exponent_size, unsigned int modulus_size,
 			  void *tmp );
 
 #endif /* _IPXE_BIGINT_H */
