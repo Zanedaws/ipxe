@@ -1373,7 +1373,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		DBGC(tls, "Master secret used:\n");
 		for (uint16_t i = 0; i < 48; i++)
 		{
-			DBGC(tls, "%x", tls->master_secret);
+			DBGC(tls, "%x", tls->master_secret[i]);
 			if (!((i + 1) % 4))
 			{
 				DBGC(tls, " ");
@@ -1555,32 +1555,74 @@ static int tls_send_change_cipher ( struct tls_connection *tls ) {
  */
 static int tls_send_finished ( struct tls_connection *tls ) {
 	struct digest_algorithm *digest = tls->handshake_digest;
-	struct {
-		uint32_t type_length;
-		uint8_t verify_data[ sizeof ( tls->verify.client ) ];
-	} __attribute__ (( packed )) finished;
-	uint8_t digest_out[ digest->digestsize ];
+	struct cipher_algorithm *cipher = tls->tx_cipherspec_pending.suite->cipher;
+	struct aes_context * context = (struct aes_context *) tls->tx_cipherspec_pending.cipher_ctx;
+
 	int rc;
+	uint8_t digest_out[ digest->digestsize ];
 
-	/* Construct client verification data */
-	tls_verify_handshake ( tls, digest_out );
-	tls_prf_label ( tls, &tls->master_secret, sizeof ( tls->master_secret ),
-			tls->verify.client, sizeof ( tls->verify.client ),
-			"client finished", digest_out, sizeof ( digest_out ) );
+	if (cipher -> name != "aes_gcm")
+	{
+		DBGC(tls, "Cipher name: %s\n", ((char *) cipher->name));
+		struct {
+			uint32_t type_length;
+			uint8_t verify_data[ sizeof ( tls->verify.client ) ];
+		} __attribute__ (( packed )) finished;
 
-	/* Construct record */
-	memset ( &finished, 0, sizeof ( finished ) );
-	finished.type_length = ( cpu_to_le32 ( TLS_FINISHED ) |
-				 htonl ( sizeof ( finished ) -
-					 sizeof ( finished.type_length ) ) );
-	memcpy ( finished.verify_data, tls->verify.client,
-		 sizeof ( finished.verify_data ) );
+		/* Construct client verification data */
+		tls_verify_handshake ( tls, digest_out );
+		tls_prf_label ( tls, &tls->master_secret, sizeof ( tls->master_secret ),
+				tls->verify.client, sizeof ( tls->verify.client ),
+				"client finished", digest_out, sizeof ( digest_out ) );
+	
+		/* Construct record */
+		memset ( &finished, 0, sizeof ( finished ) );
+		finished.type_length = ( cpu_to_le32 ( TLS_FINISHED ) |
+					htonl ( sizeof ( finished ) -
+						sizeof ( finished.type_length ) ) );
+		memcpy ( finished.verify_data, tls->verify.client,
+			sizeof ( finished.verify_data ) );
+
+		DBGC(tls, "Sending finished msg non GCM!\n");
+		if ( ( rc = tls_send_handshake ( tls, &finished,
+						sizeof ( finished ) ) ) != 0 )
+			return rc;
+		
+	}
+	else
+	{
+		struct {
+			uint32_t type_length;
+			uint8_t iv[context->iv_len];
+			uint8_t verify_data[ sizeof ( tls->verify.client ) ];
+		} __attribute__ (( packed )) finished;
+
+
+
+		/* Construct client verification data */
+		tls_verify_handshake ( tls, digest_out );
+		tls_prf_label ( tls, &tls->master_secret, sizeof ( tls->master_secret ),
+				tls->verify.client, sizeof ( tls->verify.client ),
+				"client finished", digest_out, sizeof ( digest_out ) );
+	
+		/* Construct record */
+		memset ( &finished, 0, sizeof ( finished ) );
+		finished.type_length = ( cpu_to_le32 ( TLS_FINISHED ) |
+					htonl ( sizeof ( finished ) -
+						sizeof ( finished.type_length ) ) );
+		memcpy( finished.iv, context->iv, context->iv_len );
+		memcpy ( finished.verify_data, tls->verify.client,
+			sizeof ( finished.verify_data ) );
+
+		DBGC(tls, "Sending finished msg GCM!\n");
+		if ( ( rc = tls_send_handshake ( tls, &finished,
+						sizeof ( finished ) ) ) != 0 )
+			return rc;
+	}
+	
 
 	/* Transmit record */
-	DBGC(tls, "Sending finished msg!\n");
-	if ( ( rc = tls_send_handshake ( tls, &finished,
-					 sizeof ( finished ) ) ) != 0 )
-		return rc;
+	
 
 	/* Mark client as finished */
 	pending_put ( &tls->client_negotiation );
@@ -2708,6 +2750,7 @@ static void * tls_assemble_block ( struct tls_connection *tls,
 	size_t mac_len = tls->tx_cipherspec.suite->digest->digestsize;
 	size_t iv_len;
 	size_t padding_len;
+	size_t tag_len = 0;
 	void *plaintext;
 	void *iv;
 	void *content;
@@ -2717,14 +2760,23 @@ static void * tls_assemble_block ( struct tls_connection *tls,
 	/* TLSv1.1 and later use an explicit IV */
 	iv_len = ( tls_version ( tls, TLS_VERSION_TLS_1_1 ) ? blocksize : 0 );
 
+	if (tls->tx_cipherspec.suite->cipher->name == "aes_gcm")
+	{
+		iv_len = 12;
+		tag_len = blocksize;
+	}
+
+	DBGC(tls, "IV Length: %d\n", iv_len);
+
 	/* Calculate block-ciphered struct length */
 	padding_len = ( ( blocksize - 1 ) & -( iv_len + len + mac_len + 1 ) );
-	*plaintext_len = ( iv_len + len + mac_len + padding_len + 1 );
+	*plaintext_len = ( iv_len + len + tag_len + mac_len + padding_len + 1 );
 
 	/* Allocate block-ciphered struct */
 	plaintext = malloc ( *plaintext_len );
 	if ( ! plaintext )
 		return NULL;
+	DBGC(tls, "Plaintext Length: %d\n", *plaintext_len);
 	iv = plaintext;
 	content = ( iv + iv_len );
 	mac = ( content + len );
@@ -2732,10 +2784,13 @@ static void * tls_assemble_block ( struct tls_connection *tls,
 
 	/* Fill in block-ciphered struct */
 	tls_generate_random ( tls, iv, iv_len );
+	DBGC(tls, "Generated IV\n");
 	memcpy ( content, data, len );
+	DBGC(tls, "Content memcpy\n");
 	memcpy ( mac, digest, mac_len );
+	DBGC(tls, "Mac memcpy\n");
 	memset ( padding, padding_len, ( padding_len + 1 ) );
-
+	DBGC(tls, "returning from assemble block\n");
 	return plaintext;
 }
 
@@ -2808,7 +2863,19 @@ static int tls_send_plaintext ( struct tls_connection *tls, unsigned int type,
 	DBGC2_HD ( tls, plaintext, plaintext_len );
 
 	/* Allocate ciphertext */
+	/*if (cipher->name == "aes_gcm")
+	{
+		// need to allocate space for tag
+		size_t pad = cipher->blocksize - (len % cipher->blocksize);
+		size_t tag_len = len + pad;
+		ciphertext_len = ( sizeof ( *tlshdr ) + plaintext_len + tag_len);
+	}
+	else
+	{
+		
+	}*/
 	ciphertext_len = ( sizeof ( *tlshdr ) + plaintext_len );
+	DBGC(tls, "Ciphertext len: %d | Plaintext len: %d\n", ciphertext_len, plaintext_len);
 	ciphertext = xfer_alloc_iob ( &tls->cipherstream, ciphertext_len );
 	if ( ! ciphertext ) {
 		DBGC ( tls, "TLS %p could not allocate %zd bytes for "
@@ -2817,6 +2884,8 @@ static int tls_send_plaintext ( struct tls_connection *tls, unsigned int type,
 		goto done;
 	}
 
+	DBGC(tls, "Allocated ciphertext\n");
+
 	/* Assemble ciphertext */
 	tlshdr = iob_put ( ciphertext, sizeof ( *tlshdr ) );
 	tlshdr->type = type;
@@ -2824,8 +2893,15 @@ static int tls_send_plaintext ( struct tls_connection *tls, unsigned int type,
 	tlshdr->length = htons ( plaintext_len );
 	memcpy ( cipherspec->cipher_next_ctx, cipherspec->cipher_ctx,
 		 cipher->ctxsize );
+
+	DBGC(tls, "Before encryption!\n");
+	DBGC(tls, "Cipher name: %s | Len: %d\n", ((char *)cipher->name), plaintext_len);
+	struct aes_context * aes = (struct aes_context *) cipherspec->cipher_next_ctx;
+	DBGC(aes, "Called cipher encrypt from tls send plaintext\n");
 	cipher_encrypt ( cipher, cipherspec->cipher_next_ctx, plaintext,
 			 iob_put ( ciphertext, plaintext_len ), plaintext_len );
+
+	DBGC(tls, "After encryption!\n");
 
 	/* Free plaintext as soon as possible to conserve memory */
 	free ( plaintext );
@@ -2838,6 +2914,8 @@ static int tls_send_plaintext ( struct tls_connection *tls, unsigned int type,
 		       tls, strerror ( rc ) );
 		goto done;
 	}
+
+	DBGC(tls, "ciphertext sent!\n");
 
 	/* Update TX state machine to next record */
 	tls->tx_seq += 1;

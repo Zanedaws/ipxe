@@ -68,6 +68,8 @@ struct cipher_algorithm {
 	 * @v iv		Initialisation vector
 	 */
 	void ( * setiv ) ( void *ctx, const void *iv );
+
+	void ( * setaad ) ( void *ctx, const void *aad );
 	/** Encrypt data
 	 *
 	 * @v ctx		Context
@@ -196,10 +198,18 @@ static inline void cipher_setiv ( struct cipher_algorithm *cipher,
 	cipher->setiv ( ctx, iv );
 }
 
+static inline void cipher_setaad ( struct cipher_algorithm *cipher,
+				  void *ctx, const void *aad ) {
+	cipher->setaad ( ctx, aad );
+}
+
 static inline void cipher_encrypt ( struct cipher_algorithm *cipher,
 				    void *ctx, const void *src, void *dst,
 				    size_t len ) {
+	struct aes_context * aes = (struct aes_context *) ctx;
+	DBGC(aes, "Start cipher encrypt. Cipher: %s | Encrypt fxn: %p\n", ((char *)cipher->name), cipher->encrypt);
 	cipher->encrypt ( ctx, src, dst, len );
+	DBGC(aes, "End cipher encrypt.\n");
 }
 #define cipher_encrypt( cipher, ctx, src, dst, len ) do {		\
 	assert ( ( (len) & ( (cipher)->blocksize - 1 ) ) == 0 );	\

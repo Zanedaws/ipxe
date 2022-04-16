@@ -66,11 +66,13 @@ static void cbc_xor ( const void *src, void *dst, size_t len ) {
 void cbc_encrypt ( void *ctx, const void *src, void *dst, size_t len,
 		   struct cipher_algorithm *raw_cipher, void *cbc_ctx ) {
 	size_t blocksize = raw_cipher->blocksize;
-
+	
 	assert ( ( len % blocksize ) == 0 );
 
 	while ( len ) {
 		cbc_xor ( src, cbc_ctx, blocksize );
+		struct aes_context * aes = (struct aes_context *) ctx;
+		DBGC(aes, "Called cipher encrypt from cbc\n");
 		cipher_encrypt ( raw_cipher, ctx, cbc_ctx, dst, blocksize );
 		memcpy ( cbc_ctx, dst, blocksize );
 		dst += blocksize;

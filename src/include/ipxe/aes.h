@@ -41,6 +41,8 @@ struct aes_context {
 	unsigned int rounds;
 	void * aad;
 	size_t aad_len;
+	void * iv;
+	size_t iv_len;
 };
 
 /** AES context size */

@@ -70,6 +70,26 @@ void cipher_encrypt_okx ( struct cipher_test *test, const char *file,
 	okx ( memcmp ( ciphertext, test->ciphertext, len ) == 0, file, line );
 }
 
+void cipher_gcm_encrypt_okx ( struct cipher_gcm_test *test, const char *file,
+			  unsigned int line ) {
+	struct cipher_algorithm *cipher = test->cipher;
+	size_t len = test->len;
+	uint8_t ctx[cipher->ctxsize];
+	uint8_t ciphertext[len];
+
+	/* Initialise cipher */
+	okx ( cipher_setkey ( cipher, ctx, test->key, test->key_len ) == 0,
+	      file, line );
+	cipher_setiv ( cipher, ctx, test->iv );
+	cipher_setaad ( cipher, ctx, test->aad );
+
+	/* Perform encryption */
+	cipher_encrypt ( cipher, ctx, test->plaintext, ciphertext, len );
+
+	/* Compare against expected ciphertext */
+	okx ( memcmp ( ciphertext, test->ciphertext, len ) == 0, file, line );
+}
+
 /**
  * Report a cipher decryption test result
  *
@@ -96,6 +116,26 @@ void cipher_decrypt_okx ( struct cipher_test *test, const char *file,
 	okx ( memcmp ( plaintext, test->plaintext, len ) == 0, file, line );
 }
 
+void cipher_gcm_decrypt_okx ( struct cipher_gcm_test *test, const char *file,
+			  unsigned int line ) {
+	struct cipher_algorithm *cipher = test->cipher;
+	size_t len = test->len;
+	uint8_t ctx[cipher->ctxsize];
+	uint8_t plaintext[len];
+
+	/* Initialise cipher */
+	okx ( cipher_setkey ( cipher, ctx, test->key, test->key_len ) == 0,
+	      file, line );
+	cipher_setiv ( cipher, ctx, test->iv );
+	cipher_setaad( cipher, ctx, test->aad );
+
+	/* Perform encryption */
+	cipher_decrypt ( cipher, ctx, test->ciphertext, plaintext, len );
+
+	/* Compare against expected plaintext */
+	okx ( memcmp ( plaintext, test->plaintext, len ) == 0, file, line );
+}
+
 /**
  * Report a cipher encryption and decryption test result
  *
@@ -110,6 +150,12 @@ void cipher_okx ( struct cipher_test *test, const char *file,
 	cipher_decrypt_okx ( test, file, line );
 }
 
+void cipher_gcm_okx (struct cipher_gcm_test *test, const char *file,
+		  unsigned int line ) {
+
+	cipher_gcm_encrypt_okx ( test, file, line );
+	cipher_gcm_decrypt_okx ( test, file, line );
+}
 /**
  * Calculate cipher encryption or decryption cost
  *

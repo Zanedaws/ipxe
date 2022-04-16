@@ -402,6 +402,7 @@ static void aes_encrypt ( void *ctx, const void *src, void *dst, size_t len ) {
 	union aes_matrix *out = &buffer[1];
 	unsigned int rounds = aes->rounds;
 
+	DBGC(aes, "Entered standard AES encrypt\n");
 	/* Sanity check */
 	assert ( len == sizeof ( *in ) );
 
@@ -410,6 +411,7 @@ static void aes_encrypt ( void *ctx, const void *src, void *dst, size_t len ) {
 
 	/* Perform initial round (AddRoundKey) */
 	aes_addroundkey ( in, &aes->encrypt.key[0] );
+	DBGC(aes, "Added round key\n");
 
 	/* Perform intermediate rounds (ShiftRows, SubBytes,
 	 * MixColumns, AddRoundKey).
@@ -421,6 +423,7 @@ static void aes_encrypt ( void *ctx, const void *src, void *dst, size_t len ) {
 	out = dst;
 	aes_final ( &aes_mixcolumns, AES_STRIDE_SHIFTROWS, in, out,
 		    &aes->encrypt.key[ rounds - 1 ] );
+	DBGC(aes, "Finished aes\n");
 }
 
 /**
