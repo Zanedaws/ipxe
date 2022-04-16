@@ -2,3 +2,8 @@
 .echocheck
 TAGS*
 bin*
+.vscode/
+ca.*
+doxygen.cfg.bak
+signed/
+zaneCerts/
