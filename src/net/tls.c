@@ -1245,7 +1245,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 	struct tls_cipherspec *cipherspec = &tls->tx_cipherspec_pending;
 	struct pubkey_algorithm *pubkey = cipherspec->suite->pubkey;
 	size_t max_len = pubkey_max_len ( pubkey, cipherspec->pubkey_ctx );
-	uint16_t i;
+	//uint16_t i;
 	uint16_t rc;
 	if (cipherspec->suite->pubkey->name == "dhe")
 	{
@@ -1321,24 +1321,24 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 		time_t time2 = time_now();
 		DBGC(tls, "Calc time: %lld\n", time2 - time1);
 
-		for(i = 0; i < context->max_len; i++)
+		/*for(i = 0; i < context->max_len; i++)
 		{
 			DBGC(tls, "dh param bigint out: %x\n", client_pubval->element[i]);
-		}
+		}*/
 
 		bigint_t ( context->max_len ) *client_pubval_bigint = ( ( void * ) context->client_dh_param );
 		bigint_done(client_pubval_bigint, key_xchg.client_pubval, context->prime_size);
 		
-		for(i = 0; i < context->prime_size; i++)
+		/*for(i = 0; i < context->prime_size; i++)
 		{
 			DBGC(tls, "DH Client Param element %d: %x\n", i, key_xchg.client_pubval[i]);
-		}
+		}*/
 
 		bigint_t (context -> max_len) * server_pubval = ( (void *) context->server_pubval); // G^y % prime
 		bigint_t (context -> max_len) * premaster_secret_output = ( ( void *) context -> premaster_secret);
 		bigint_mod_multiply( client_pubval, server_pubval, prime, premaster_secret_output, context->mult_tmp); 
 
-		DBGC(tls, "Premaster bigint secret used:\n");
+		/*DBGC(tls, "Premaster bigint secret used:\n");
 		for (uint16_t i = 0; i < context->max_len; i++)
 		{
 			DBGC(tls, "%x ", premaster_secret_output->element[i]);
@@ -1346,7 +1346,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 			{
 				DBGC(tls, "\n");
 			}
-		}
+		}*/
 
 		bigint_done(premaster_secret_output, tls->dhe_pre_master_secret.pre_master_secret, context->prime_size); // Use bigint done instead of memcpy to reverse the order
 
@@ -2895,7 +2895,7 @@ static int tls_send_plaintext ( struct tls_connection *tls, unsigned int type,
 		 cipher->ctxsize );
 
 	DBGC(tls, "Before encryption!\n");
-	DBGC(tls, "Cipher name: %s | Len: %d\n", ((char *)cipher->name), plaintext_len);
+	DBGC(tls, "Cipher name: %s | Len: %d | Encrypt fxn: %p\n", ((char *)cipher->name), plaintext_len, cipher->encrypt);
 	struct aes_context * aes = (struct aes_context *) cipherspec->cipher_next_ctx;
 	DBGC(aes, "Called cipher encrypt from tls send plaintext\n");
 	cipher_encrypt ( cipher, cipherspec->cipher_next_ctx, plaintext,

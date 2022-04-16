@@ -85,12 +85,14 @@ static void right_shift(uint8_t * bits, size_t byte_len)
 	}
 }
 
-static void gcm_inc32(uint8_t *block, size_t blocksize)
+static void gcm_inc32(uint8_t *j0, uint8_t * out, size_t blocksize)
 {
-	uint32_t * input = (uint32_t *) block;
+	uint32_t input[4];
+	memcpy(input, j0, blocksize);
 	uint32_t val = input[(blocksize / 4) - 1];
 	val++;
 	input[(blocksize / 4) - 1] = val;
+	memcpy(out, input, blocksize);
 }
 
 static void gcm_init_hash_subkey(void * cipher, void * ctx, uint8_t * hash_subkey)
@@ -254,23 +256,19 @@ static void gcm_gctr(void * cipher, void * ctx, uint8_t * nonce, const uint8_t *
 
 	memcpy(counter_block, nonce, blocksize);
 
-	struct aes_context * aes = (struct aes_context *) ctx;
-
 	for (uint16_t i = 0; i < n; i++)
 	{
-		DBGC(aes, "Called cipher encrypt from gctr 1\n");
 		cipher_encrypt(aes_cipher, ctx, counter_block, output_pos, blocksize);
 		gcm_xor(bit_string_pos, output_pos, blocksize);
 		bit_string_pos += blocksize;
 		output_pos += blocksize;
-		gcm_inc32(counter_block, blocksize);
+		gcm_inc32(counter_block, counter_block, blocksize);
 	}
 
 	size_t last = bit_string + bit_string_len - bit_string_pos;
 	uint8_t temp[blocksize];
 	if (last)
 	{
-		DBGC(aes, "Called cipher encrypt from gctr 2\n");
 		cipher_encrypt(aes_cipher, ctx, counter_block, temp, blocksize); // if error, make sure to pad incoming partial block
 		for (uint16_t i = 0; i < last; i++)
 		{
@@ -299,18 +297,19 @@ void gcm_encrypt_aek ( struct cipher_algorithm *raw_cipher, void *ctx, const voi
 
 	// outputs
 	uint8_t tag[blocksize];
-	uint8_t ciphertext[blocksize];
+	uint8_t ciphertext[len];
 	size_t ciphertext_len = blocksize;
 
 	uint8_t hash_subkey[blocksize];
 	uint8_t j0[blocksize];
+	uint8_t j0_inc[blocksize];
 	uint8_t s[blocksize];
 
 	gcm_init_hash_subkey(raw_cipher, ctx, hash_subkey);
 	gcm_create_j0(hash_subkey, iv, iv_len, j0, blocksize);
 
-	gcm_inc32(j0, blocksize);
-	gcm_gctr(raw_cipher, ctx, j0, src, len, ciphertext);
+	gcm_inc32(j0, j0_inc, blocksize);
+	gcm_gctr(raw_cipher, ctx, j0_inc, src, len, ciphertext);
 	gcm_create_s(hash_subkey, aad, aad_len, ciphertext, ciphertext_len, s, blocksize);
 	gcm_gctr(raw_cipher, ctx, j0, s, sizeof(s), tag); // tag should be truncated to specified tag size (which may be determined by key)
 
@@ -323,8 +322,8 @@ void gcm_encrypt_aek ( struct cipher_algorithm *raw_cipher, void *ctx, const voi
 		supported tag length t associated with the key. 
 	 * 
 	 */
-	memcpy(dst, ciphertext, blocksize);
-	dst += blocksize;
+	memcpy(dst, ciphertext, len);
+	dst += len;
 	memcpy(dst, tag, blocksize);
 
 }
@@ -340,14 +339,15 @@ int gcm_decrypt_adk ( struct cipher_algorithm *raw_cipher, void *ctx, const void
 
 	uint8_t hash_subkey[blocksize];
 	uint8_t j0[blocksize];
+	uint8_t j0_inc[blocksize];
 	uint8_t s[blocksize];
 	uint8_t * cipher_src = (uint8_t *) src;
 
 	DBGC(aes, "Before hash\n");
 	gcm_init_hash_subkey(raw_cipher, ctx, hash_subkey);
 	gcm_create_j0(hash_subkey, iv, iv_len, j0, blocksize);
-	gcm_inc32(j0, blocksize);
-	gcm_gctr(raw_cipher, ctx, j0, src, len, dst);
+	gcm_inc32(j0, j0_inc, blocksize);
+	gcm_gctr(raw_cipher, ctx, j0_inc, src, len, dst);
 
 	gcm_create_s(hash_subkey, aad, aad_len, cipher_src, len, s, blocksize);
 	gcm_gctr(raw_cipher, ctx, j0, s, sizeof(s), tag);
@@ -364,21 +364,19 @@ void gcm_encrypt ( void *ctx, const void *src, void *dst, size_t len,
 			struct cipher_algorithm *raw_cipher, void *gcm_ctx )
 {
 	struct aes_context * aes = ctx;
-	DBGC(aes, "Entered gcm encrypt!\n");
 
 	size_t blocksize = raw_cipher->blocksize;
 	
-
 	assert ( ( len % blocksize ) == 0 );
 
-
-	while (len)
+	gcm_encrypt_aek(raw_cipher, ctx, src, len, dst, gcm_ctx, aes->aad, aes->aad_len, blocksize);
+	/*while (len)
 	{
 		gcm_encrypt_aek(raw_cipher, ctx, src, len, dst, gcm_ctx, aes->aad, aes->aad_len, blocksize);
 		dst += blocksize; // two blocks of output are created from 1 block of input (plaintext -> ciphertext, tag), first increment is within gcm_encrypt_aek
 		src += blocksize;
 		len -= blocksize;
-	}
+	}*/
 }
 
 /**
@@ -399,10 +397,11 @@ void gcm_decrypt ( void *ctx, const void *src, void *dst, size_t len,
 
 	struct aes_context * context = ctx;
 
-	while ( len ) {
+	gcm_decrypt_adk(raw_cipher, ctx, src, len, dst, gcm_ctx, context->aad, context->aad_len, blocksize, src + blocksize);
+	/*while ( len ) {
 		gcm_decrypt_adk(raw_cipher, ctx, src, len, dst, gcm_ctx, context->aad, context->aad_len, blocksize, src + blocksize);
 		dst += blocksize;
 		src += (2 * blocksize);
 		len -= blocksize;
-	}
+	}*/
 }
