@@ -731,6 +731,8 @@ static int tls_generate_keys ( struct tls_connection *tls ) {
 	DBGC_HD ( tls, key, iv_size );
 	key += iv_size;
 
+	memcpy(tls->gcm_iv, key, 16);
+
 	/* RX initialisation vector */
 	cipher_setiv ( rx_cipherspec->suite->cipher,
 		       rx_cipherspec->cipher_ctx, key );
@@ -877,6 +879,15 @@ static int tls_select_cipher ( struct tls_connection *tls,
 	DBGC ( tls, "TLS %p selected %s-%s-%d-%s\n", tls, suite->pubkey->name,
 	       suite->cipher->name, ( suite->key_len * 8 ),
 	       suite->digest->name );
+
+	if ( suite->cipher->name == "aes_gcm")
+	{
+		tls->is_gcm = 1;
+	}
+	else
+	{
+		tls->is_gcm = 0;
+	}
 
 	return 0;
 }
@@ -1556,12 +1567,12 @@ static int tls_send_change_cipher ( struct tls_connection *tls ) {
 static int tls_send_finished ( struct tls_connection *tls ) {
 	struct digest_algorithm *digest = tls->handshake_digest;
 	struct cipher_algorithm *cipher = tls->tx_cipherspec_pending.suite->cipher;
-	struct aes_context * context = (struct aes_context *) tls->tx_cipherspec_pending.cipher_ctx;
+	//struct aes_context * context = (struct aes_context *) tls->tx_cipherspec_pending.cipher_ctx;
 
 	int rc;
 	uint8_t digest_out[ digest->digestsize ];
 
-	if (cipher -> name != "aes_gcm")
+	if ( !tls->is_gcm )
 	{
 		DBGC(tls, "Cipher name: %s\n", ((char *) cipher->name));
 		struct {
@@ -1593,13 +1604,14 @@ static int tls_send_finished ( struct tls_connection *tls ) {
 	{
 		struct {
 			uint32_t type_length;
-			uint8_t iv[context->iv_len];
-			uint8_t verify_data[ sizeof ( tls->verify.client ) ];
+			uint8_t verify_data[ /*sizeof ( tls->verify.client )*/12 ];
 		} __attribute__ (( packed )) finished;
 
+		DBGC(tls, "Size of finished msg: %d\n", sizeof(finished));
+		DBGC(tls, "Size of verify data: %d\n", sizeof(tls->verify.client));
 
 
-		/* Construct client verification data */
+		/* Construct client verification data */ 
 		tls_verify_handshake ( tls, digest_out );
 		tls_prf_label ( tls, &tls->master_secret, sizeof ( tls->master_secret ),
 				tls->verify.client, sizeof ( tls->verify.client ),
@@ -1610,7 +1622,7 @@ static int tls_send_finished ( struct tls_connection *tls ) {
 		finished.type_length = ( cpu_to_le32 ( TLS_FINISHED ) |
 					htonl ( sizeof ( finished ) -
 						sizeof ( finished.type_length ) ) );
-		memcpy( finished.iv, context->iv, context->iv_len );
+		//memcpy( finished.iv, tls->gcm_iv, 12 );
 		memcpy ( finished.verify_data, tls->verify.client,
 			sizeof ( finished.verify_data ) );
 
@@ -2750,7 +2762,7 @@ static void * tls_assemble_block ( struct tls_connection *tls,
 	size_t mac_len = tls->tx_cipherspec.suite->digest->digestsize;
 	size_t iv_len;
 	size_t padding_len;
-	size_t tag_len = 0;
+	//size_t tag_len = 0;
 	void *plaintext;
 	void *iv;
 	void *content;
@@ -2760,17 +2772,26 @@ static void * tls_assemble_block ( struct tls_connection *tls,
 	/* TLSv1.1 and later use an explicit IV */
 	iv_len = ( tls_version ( tls, TLS_VERSION_TLS_1_1 ) ? blocksize : 0 );
 
+	padding_len = ( ( blocksize - 1 ) & -( iv_len + len + mac_len + 1 ) );
+
 	if (tls->tx_cipherspec.suite->cipher->name == "aes_gcm")
 	{
-		iv_len = 12;
-		tag_len = blocksize;
+		iv_len = 0;
+		mac_len = 0; // to account for gcm tag
+		padding_len = 0;
+		*plaintext_len = ( iv_len + len + mac_len + padding_len + 1);
+	}
+	else
+	{
+		*plaintext_len = ( iv_len + len + mac_len + padding_len + 1 );
 	}
 
 	DBGC(tls, "IV Length: %d\n", iv_len);
 
 	/* Calculate block-ciphered struct length */
-	padding_len = ( ( blocksize - 1 ) & -( iv_len + len + mac_len + 1 ) );
-	*plaintext_len = ( iv_len + len + tag_len + mac_len + padding_len + 1 );
+	
+
+	DBGC(tls, "IV Length: %d | Plain Length: %d | Mac Length: %d | Padding Length: %d\n", iv_len, *plaintext_len, mac_len, padding_len);
 
 	/* Allocate block-ciphered struct */
 	plaintext = malloc ( *plaintext_len );
@@ -2783,14 +2804,22 @@ static void * tls_assemble_block ( struct tls_connection *tls,
 	padding = ( mac + mac_len );
 
 	/* Fill in block-ciphered struct */
-	tls_generate_random ( tls, iv, iv_len );
+	
 	DBGC(tls, "Generated IV\n");
-	memcpy ( content, data, len );
-	DBGC(tls, "Content memcpy\n");
-	memcpy ( mac, digest, mac_len );
-	DBGC(tls, "Mac memcpy\n");
-	memset ( padding, padding_len, ( padding_len + 1 ) );
-	DBGC(tls, "returning from assemble block\n");
+	if (tls->tx_cipherspec.suite->cipher->name == "aes_gcm")
+	{
+		memcpy ( plaintext, data, len );
+		DBGC(tls, "GCM Content memcpy\n");
+	}
+	else
+	{
+		tls_generate_random ( tls, iv, iv_len );
+		memcpy ( content, data, len );
+		memcpy ( mac, digest, mac_len );
+		DBGC(tls, "Mac memcpy\n");
+		memset ( padding, padding_len, ( padding_len + 1 ) );
+		DBGC(tls, "returning from assemble block\n");
+	}
 	return plaintext;
 }
 
@@ -2874,7 +2903,14 @@ static int tls_send_plaintext ( struct tls_connection *tls, unsigned int type,
 	{
 		
 	}*/
-	ciphertext_len = ( sizeof ( *tlshdr ) + plaintext_len );
+	if (tls->tx_cipherspec.suite->cipher->name == "aes_gcm")
+	{
+		ciphertext_len = ( sizeof ( *tlshdr ) + 8 + plaintext_len + 16 );
+	}
+	else
+	{
+		ciphertext_len = ( sizeof ( *tlshdr ) + plaintext_len );
+	}	
 	DBGC(tls, "Ciphertext len: %d | Plaintext len: %d\n", ciphertext_len, plaintext_len);
 	ciphertext = xfer_alloc_iob ( &tls->cipherstream, ciphertext_len );
 	if ( ! ciphertext ) {
@@ -2884,15 +2920,31 @@ static int tls_send_plaintext ( struct tls_connection *tls, unsigned int type,
 		goto done;
 	}
 
-	DBGC(tls, "Allocated ciphertext\n");
+	DBGC(tls, "Allocated ciphertext with len: %d\n", ciphertext_len);
 
 	/* Assemble ciphertext */
 	tlshdr = iob_put ( ciphertext, sizeof ( *tlshdr ) );
 	tlshdr->type = type;
 	tlshdr->version = htons ( tls->version );
-	tlshdr->length = htons ( plaintext_len );
+	
+	if (tls->tx_cipherspec.suite->cipher->name == "aes_gcm")
+	{
+		tlshdr->length = htons ( plaintext_len + 8 + 16 );
+	}
+	else
+	{
+		tlshdr->length = htons ( plaintext_len );
+	}	
 	memcpy ( cipherspec->cipher_next_ctx, cipherspec->cipher_ctx,
 		 cipher->ctxsize );
+
+	if (tls->tx_cipherspec.suite->cipher->name == "aes_gcm")
+	{
+		void * iv_ptr = iob_put ( ciphertext, 8 );;
+		tls_generate_random(tls, iv_ptr, 8);
+		uint8_t * ivi = (uint8_t *) iv_ptr;
+		DBGC(tls, "Explicit IV: %x%x%x%x %x%x%x%x\n", ivi[0], ivi[1], ivi[2], ivi[3], ivi[4], ivi[5], ivi[6], ivi[7]);
+	}
 
 	DBGC(tls, "Before encryption!\n");
 	DBGC(tls, "Cipher name: %s | Len: %d | Encrypt fxn: %p\n", ((char *)cipher->name), plaintext_len, cipher->encrypt);

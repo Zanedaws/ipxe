@@ -212,7 +212,10 @@ static inline void cipher_encrypt ( struct cipher_algorithm *cipher,
 	DBGC(aes, "End cipher encrypt.\n");
 }
 #define cipher_encrypt( cipher, ctx, src, dst, len ) do {		\
-	assert ( ( (len) & ( (cipher)->blocksize - 1 ) ) == 0 );	\
+	if ( (cipher)->name != "aes_gcm")							\
+	{															\
+		assert ( ( (len) & ( (cipher)->blocksize - 1 ) ) == 0 );	\
+	}															\
 	cipher_encrypt ( (cipher), (ctx), (src), (dst), (len) );	\
 	} while ( 0 )
 

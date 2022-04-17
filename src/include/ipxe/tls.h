@@ -321,6 +321,7 @@ struct tls_connection {
 	uint8_t master_secret[48];
 	/** Server random bytes */
 	uint8_t server_random[32];
+	uint8_t gcm_iv[16];
 	/** Client random bytes */
 	struct tls_client_random client_random;
 	/** MD5+SHA1 context for handshake verification */
@@ -372,6 +373,7 @@ struct tls_connection {
 	/** List of received data buffers */
 	struct list_head rx_data;
 	uint8_t is_dhe;
+	uint8_t is_gcm;
 };
 
 /** RX I/O buffer size
