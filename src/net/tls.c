@@ -1293,7 +1293,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 				client_private_key[i] = 0;
 			}
 		}
-		context->random = client_private_key;
+		context->random = &(client_private_key[0]);
 		bigint_t (context -> max_len) * random_bigint = ( ( void * ) context->random ); // Random is good
 
 		/*DBGC(tls, "Random used:\n");
@@ -2343,7 +2343,7 @@ static int tls_new_server_key_exchange ( struct tls_connection *tls,
 	DBGC(tls, "Prime used:\n");
 		for (uint16_t i = 0; i < context->max_len; i++)
 		{
-			DBGC(tls, "%x ", context->prime[i]);
+			//DBGC(tls, "%x ", context->prime[i]);
 			if (!((i + 1) % 8))
 			{
 				DBGC(tls, "\n");
