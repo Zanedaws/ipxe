@@ -1326,7 +1326,7 @@ static int tls_send_client_key_exchange ( struct tls_connection *tls ) {
 
 		bigint_t (context -> max_len) * client_pubval = ( ( void * ) context->client_dh_param);
 
-		DBGC(tls, "prime size: %d | random size: %d | output size: %d\n", bigint_size(prime), bigint_size(random_bigint), bigint_size( client_pubval ));
+		//DBGC(tls, "prime size: %d | random size: %d | output size: %d\n", bigint_size(prime), bigint_size(random_bigint), bigint_size( client_pubval ));
 		time_t time1 = time_now();
 		bigint_mod_exp ( base, prime, random_bigint, client_pubval, context->tmp);
 		time_t time2 = time_now();
@@ -1607,8 +1607,8 @@ static int tls_send_finished ( struct tls_connection *tls ) {
 			uint8_t verify_data[ /*sizeof ( tls->verify.client )*/12 ];
 		} __attribute__ (( packed )) finished;
 
-		DBGC(tls, "Size of finished msg: %d\n", sizeof(finished));
-		DBGC(tls, "Size of verify data: %d\n", sizeof(tls->verify.client));
+		//DBGC(tls, "Size of finished msg: %d\n", sizeof(finished));
+		//DBGC(tls, "Size of verify data: %d\n", sizeof(tls->verify.client));
 
 
 		/* Construct client verification data */ 
@@ -2786,18 +2786,18 @@ static void * tls_assemble_block ( struct tls_connection *tls,
 		*plaintext_len = ( iv_len + len + mac_len + padding_len + 1 );
 	}
 
-	DBGC(tls, "IV Length: %d\n", iv_len);
+	//DBGC(tls, "IV Length: %d\n", iv_len);
 
 	/* Calculate block-ciphered struct length */
 	
 
-	DBGC(tls, "IV Length: %d | Plain Length: %d | Mac Length: %d | Padding Length: %d\n", iv_len, *plaintext_len, mac_len, padding_len);
+	//DBGC(tls, "IV Length: %d | Plain Length: %d | Mac Length: %d | Padding Length: %d\n", iv_len, *plaintext_len, mac_len, padding_len);
 
 	/* Allocate block-ciphered struct */
 	plaintext = malloc ( *plaintext_len );
 	if ( ! plaintext )
 		return NULL;
-	DBGC(tls, "Plaintext Length: %d\n", *plaintext_len);
+	//DBGC(tls, "Plaintext Length: %d\n", *plaintext_len);
 	iv = plaintext;
 	content = ( iv + iv_len );
 	mac = ( content + len );
@@ -2848,7 +2848,7 @@ static int tls_send_plaintext ( struct tls_connection *tls, unsigned int type,
 
 	const uint8_t * test = data;
 
-	DBGC(tls, "plaintext (len: %d) to send:\n", len);
+	//DBGC(tls, "plaintext (len: %d) to send:\n", len);
 		for (uint16_t i = 0; i < len; i++)
 		{
 			DBGC(tls, "%x", test[i]);
@@ -2911,7 +2911,7 @@ static int tls_send_plaintext ( struct tls_connection *tls, unsigned int type,
 	{
 		ciphertext_len = ( sizeof ( *tlshdr ) + plaintext_len );
 	}	
-	DBGC(tls, "Ciphertext len: %d | Plaintext len: %d\n", ciphertext_len, plaintext_len);
+	//DBGC(tls, "Ciphertext len: %d | Plaintext len: %d\n", ciphertext_len, plaintext_len);
 	ciphertext = xfer_alloc_iob ( &tls->cipherstream, ciphertext_len );
 	if ( ! ciphertext ) {
 		DBGC ( tls, "TLS %p could not allocate %zd bytes for "
@@ -2920,7 +2920,7 @@ static int tls_send_plaintext ( struct tls_connection *tls, unsigned int type,
 		goto done;
 	}
 
-	DBGC(tls, "Allocated ciphertext with len: %d\n", ciphertext_len);
+	//DBGC(tls, "Allocated ciphertext with len: %d\n", ciphertext_len);
 
 	/* Assemble ciphertext */
 	tlshdr = iob_put ( ciphertext, sizeof ( *tlshdr ) );
@@ -2947,7 +2947,7 @@ static int tls_send_plaintext ( struct tls_connection *tls, unsigned int type,
 	}
 
 	DBGC(tls, "Before encryption!\n");
-	DBGC(tls, "Cipher name: %s | Len: %d | Encrypt fxn: %p\n", ((char *)cipher->name), plaintext_len, cipher->encrypt);
+	//DBGC(tls, "Cipher name: %s | Len: %d | Encrypt fxn: %p\n", ((char *)cipher->name), plaintext_len, cipher->encrypt);
 	struct aes_context * aes = (struct aes_context *) cipherspec->cipher_next_ctx;
 	DBGC(aes, "Called cipher encrypt from tls send plaintext\n");
 	cipher_encrypt ( cipher, cipherspec->cipher_next_ctx, plaintext,
