@@ -150,11 +150,11 @@ void cipher_okx ( struct cipher_test *test, const char *file,
 	cipher_decrypt_okx ( test, file, line );
 }
 
-void cipher_gcm_okx (struct cipher_gcm_test *test __unused, const char *file __unused,
-		  unsigned int line __unused) {
+void cipher_gcm_okx (struct cipher_gcm_test *test, const char *file,
+		  unsigned int line) {
 
-	//cipher_gcm_encrypt_okx ( test, file, line );
-	//cipher_gcm_decrypt_okx ( test, file, line );
+	cipher_gcm_encrypt_okx ( test, file, line );
+	cipher_gcm_decrypt_okx ( test, file, line );
 }
 /**
  * Calculate cipher encryption or decryption cost
