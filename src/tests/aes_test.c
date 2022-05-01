@@ -44,6 +44,7 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #include <ipxe/aes.h>
 #include <ipxe/test.h>
 #include "cipher_test.h"
+#include <stdio.h>
 
 /** Key used for NIST 128-bit test vectors */
 #define AES_KEY_NIST_128						\
@@ -223,7 +224,7 @@ static void aes_test_exec ( void ) {
 	cipher_ok ( &aes_192_cbc );
 	cipher_ok ( &aes_256_ecb );
 	cipher_ok ( &aes_256_cbc );
-	DBG ( "Before AES GCM\n");
+	printf("Before gcm test\n");
 	cipher_gcm_ok ( &aes_256_gcm );
 
 	/* Speed tests */

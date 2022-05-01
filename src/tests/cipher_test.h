@@ -114,7 +114,7 @@ struct cipher_gcm_test {
 		.iv_len = sizeof ( name ## _iv ),			\
 		.plaintext = name ## _plaintext,			\
 		.ciphertext = name ## _ciphertext,			\
-		.len = sizeof ( name ## _plaintext ),			\
+		.len = sizeof ( name ## _plaintext ) + 16,			\
 		.aad = name ## _aad,					\
 		.aad_len = sizeof ( name ## _aad ),			\
 	}

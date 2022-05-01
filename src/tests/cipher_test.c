@@ -40,6 +40,7 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #include <ipxe/profile.h>
 #include <ipxe/test.h>
 #include "cipher_test.h"
+#include <stdio.h>
 
 /** Number of sample iterations for profiling */
 #define PROFILE_COUNT 16
@@ -81,12 +82,43 @@ void cipher_gcm_encrypt_okx ( struct cipher_gcm_test *test, const char *file,
 	okx ( cipher_setkey ( cipher, ctx, test->key, test->key_len ) == 0,
 	      file, line );
 	cipher_setiv ( cipher, ctx, test->iv );
-	cipher_setaad ( cipher, ctx, test->aad );
+	cipher_setaad ( cipher, ctx, test->aad, test->aad_len);
 
 	/* Perform encryption */
 	cipher_encrypt ( cipher, ctx, test->plaintext, ciphertext, len );
 
 	/* Compare against expected ciphertext */
+
+	printf("Ciphertext: \n");
+	for (uint16_t i = 0; i < len; i++)
+	{
+		printf("%x", ciphertext[i]);
+		if ((i + 1) % 4 == 0)
+		{
+			printf(" ");
+		}
+		if ((i + 1) % 16 == 0)
+		{
+			printf("\n");
+		}
+	}
+
+	printf("Expected: \n");
+	for (uint16_t i = 0; i < len; i++)
+	{
+		printf("%x", ((uint8_t *)test->ciphertext)[i]);
+		if ((i + 1) % 4 == 0)
+		{
+			printf(" ");
+		}
+		if ((i + 1) % 16 == 0)
+		{
+			printf("\n");
+		}
+	}
+
+	printf("memcmp test: %d\n", memcmp ( ciphertext, test->ciphertext, len ));
+
 	okx ( memcmp ( ciphertext, test->ciphertext, len ) == 0, file, line );
 }
 
@@ -127,7 +159,7 @@ void cipher_gcm_decrypt_okx ( struct cipher_gcm_test *test, const char *file,
 	okx ( cipher_setkey ( cipher, ctx, test->key, test->key_len ) == 0,
 	      file, line );
 	cipher_setiv ( cipher, ctx, test->iv );
-	cipher_setaad( cipher, ctx, test->aad );
+	cipher_setaad( cipher, ctx, test->aad, test->aad_len );
 
 	/* Perform encryption */
 	cipher_decrypt ( cipher, ctx, test->ciphertext, plaintext, len );
@@ -150,10 +182,18 @@ void cipher_okx ( struct cipher_test *test, const char *file,
 	cipher_decrypt_okx ( test, file, line );
 }
 
-void cipher_gcm_okx (struct cipher_gcm_test *test __unused, const char *file __unused,
-		  unsigned int line __unused) {
+void cipher_gcm_okx (struct cipher_gcm_test *test, const char *file,
+		  unsigned int line) {
 
-	//cipher_gcm_encrypt_okx ( test, file, line );
+	if (test == NULL)
+	{
+		printf("GCM test is null\n");
+	}
+	if (file == NULL)
+	{
+		printf("File is NULL\n");
+	}
+	cipher_gcm_encrypt_okx ( test, file, line );
 	//cipher_gcm_decrypt_okx ( test, file, line );
 }
 /**

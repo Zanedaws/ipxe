@@ -30,6 +30,7 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #include <ipxe/crypto.h>
 #include <ipxe/gcm.h>
 #include <ipxe/aes.h>
+#include <stdio.h>
 
 //comment
 
@@ -85,14 +86,25 @@ static void right_shift(uint8_t * bits, size_t byte_len)
 	}
 }
 
-static void gcm_inc32(uint8_t *j0, uint8_t * out, size_t blocksize)
+static void gcm_inc32(uint8_t *j0, uint8_t * out, size_t blocksize )
 {
-	uint32_t input[4];
-	memcpy(input, j0, blocksize);
-	uint32_t val = input[(blocksize / 4) - 1];
-	val++;
-	input[(blocksize / 4) - 1] = val;
-	memcpy(out, input, blocksize);
+	memcpy(out, j0, blocksize);
+	printf("Out:\n");
+	for (uint16_t i = 0; i < blocksize; i++)
+	{
+		printf("%x", out[i]);
+		if ((i + 1) % 4 == 0)
+		{
+			printf(" ");
+		}
+	}
+	printf("\n");
+	uint32_t input = j0[blocksize - 4] << 24 | j0[blocksize - 3] << 16 | j0[blocksize - 2] << 8 | j0[blocksize - 1];
+	input++;
+	out[blocksize - 4] = (input & 0xff000000) >> 24;
+	out[blocksize - 3] = (input & 0x00ff0000) >> 16;
+	out[blocksize - 2] = (input & 0x0000ff00) >> 8;
+	out[blocksize - 1] = (input & 0x000000ff);
 }
 
 static void gcm_init_hash_subkey(void * cipher, void * ctx, uint8_t * hash_subkey)
@@ -178,16 +190,19 @@ static void ghash(uint8_t * hash_subkey, const uint8_t *input, int input_len, ui
 
 }
 
-static void gcm_create_j0(uint8_t * hash_subkey, uint8_t * iv, size_t iv_len, uint8_t * j0, size_t blocksize)
-{
-	uint8_t len_buffer[blocksize]; 
-	
-	if (iv_len == 12)
+static void gcm_create_j0(uint8_t * hash_subkey __unused, uint8_t * iv, size_t iv_len, uint8_t * j0, size_t blocksize)
+{	
+	//if (iv_len == 12)
+	//{
+	memset(j0, 0, blocksize);
+	for (uint16_t i = 0; i < iv_len; i++)
 	{
-		memcpy(j0, iv, iv_len);
-		memset(j0 + iv_len, 0, blocksize - iv_len);
-		j0[blocksize - 1] = 0x01;
+		j0[i] = iv[i];
 	}
+	//memcpy(j0, iv, iv_len);
+	j0[15] = 1;
+	
+	/*}
 	else
 	{
 		memset(j0, 0, blocksize);
@@ -196,28 +211,99 @@ static void gcm_create_j0(uint8_t * hash_subkey, uint8_t * iv, size_t iv_len, ui
 		uint32_t iv_bits = iv_len * 8;
 		memcpy(len_buffer + 12, &iv_bits, sizeof(iv_bits)); 
 		ghash(hash_subkey, len_buffer, sizeof(len_buffer), j0, blocksize);
-	}
+	}*/
 }
 
 static void gcm_create_s(uint8_t * hash_subkey, uint8_t * auth_data, size_t aad_len, const uint8_t * ciphertext, size_t ciphertext_len, uint8_t * s, size_t blocksize)
 {
-	uint8_t len_buffer[blocksize]; 
+	//uint8_t len_buffer[blocksize]; 
 
-	// need to check for padding of aad
+	uint8_t len_buf[blocksize];
+	memset(len_buf, 0, blocksize);
 	memset(s, 0, blocksize);
-
-	if (aad_len)
-	{
-		size_t pad_bytes = blocksize - (aad_len % blocksize);
-		uint8_t new_aad[aad_len + pad_bytes];
-		memset(new_aad, 0, aad_len + pad_bytes);
-		memcpy(new_aad, auth_data, aad_len);
-		ghash(hash_subkey, new_aad, aad_len + pad_bytes, s, blocksize); // is length of aad passed into ghash orig length or padded length?
-	}
-
+	ghash(hash_subkey, auth_data, aad_len, s, blocksize);
 	ghash(hash_subkey, ciphertext, ciphertext_len, s, blocksize);
+	uint32_t mask = 0xe0000000;
 
-	memset(len_buffer, 0, 4);
+	uint32_t aad_len_temp[2];
+	aad_len_temp[0] = 0;
+	aad_len_temp[1] = aad_len;
+	aad_len_temp[0] = (aad_len_temp[1] & mask) >> 29;
+	aad_len_temp[1] <<= 3;
+
+	uint32_t cipher_len_temp[2];
+	cipher_len_temp[0] = 0;
+	cipher_len_temp[1] = ciphertext_len;
+	cipher_len_temp[0] = (cipher_len_temp[1] & mask) >> 29;
+	cipher_len_temp[1] <<= 3;
+
+	for(uint16_t i = 0; i < blocksize; i++)
+	{
+		printf("%x", len_buf[i]);
+		if((i + 1) % 4 == 0)
+		{
+			printf(" ");
+		}
+	}
+	printf("\n");
+	memcpy(len_buf, aad_len_temp, 8);
+	memcpy(len_buf + 8, cipher_len_temp, 8);
+	ghash(hash_subkey, len_buf, blocksize, s, blocksize);
+	// need to check for padding of aad
+	/*memset(s, 0, blocksize);
+	size_t pad_bytes_aad = 0;
+	if (aad_len % blocksize)
+	{
+		pad_bytes_aad = blocksize - (aad_len % blocksize);
+	}
+	size_t s_temp_len = aad_len + pad_bytes_aad + ciphertext_len + 16;
+	uint8_t s_temp[s_temp_len];
+	memset(s_temp, 0, s_temp_len);
+	size_t location = 0;
+
+	memcpy(s_temp, auth_data, aad_len);
+	location += aad_len;
+	location += pad_bytes_aad;
+	memcpy(s_temp + location, ciphertext, ciphertext_len);
+	location += ciphertext_len;
+
+	uint32_t mask = 0xe0000000;
+
+	uint32_t aad_len_temp[2];
+	aad_len_temp[0] = 0;
+	aad_len_temp[1] = aad_len;
+	aad_len_temp[0] = (aad_len_temp[1] & mask) >> 29;
+	aad_len_temp[1] <<= 3;
+
+	uint32_t cipher_len_temp[2];
+	cipher_len_temp[0] = 0;
+	cipher_len_temp[1] = ciphertext_len;
+	cipher_len_temp[0] = (cipher_len_temp[1] & mask) >> 29;
+	cipher_len_temp[1] <<= 3;
+
+	printf("aad_len: %zx\n", aad_len);
+	printf("aad_len array: %x ", aad_len_temp[0]);
+	printf("%x\n", aad_len_temp[1]);
+
+	memcpy(s_temp + location, len_buf, blocksize);*/
+
+	/*if (sizeof(size_t) == 64)
+	{
+		memcpy(s_temp + location, &aad_len, 64);
+		location += 64;
+		memcpy(s_temp + location, &ciphertext_len, 64);
+	}
+	else
+	{
+		location += 32;
+		memcpy(s_temp + location, &aad_len, 32);
+		location += 64;
+		memcpy(s_temp + location, &ciphertext_len, 32);
+	}*/
+
+	//ghash(hash_subkey, s_temp, s_temp_len, s, blocksize);
+
+	/*memset(len_buffer, 0, 4);
 	uint32_t aad_bits = aad_len * 8;
 	memcpy(len_buffer + 4, &aad_bits, sizeof(aad_bits));
 	uint32_t zero = 0;
@@ -225,7 +311,7 @@ static void gcm_create_s(uint8_t * hash_subkey, uint8_t * auth_data, size_t aad_
 	uint32_t cipher_bits = ciphertext_len * 8;
 	memcpy(len_buffer + 12, &cipher_bits, sizeof(cipher_bits)); 
 
-	ghash(hash_subkey, len_buffer, sizeof(len_buffer), s, blocksize);
+	ghash(hash_subkey, len_buffer, sizeof(len_buffer), s, blocksize);*/
 }
 
 /**
@@ -308,9 +394,34 @@ void gcm_encrypt_aek ( struct cipher_algorithm *raw_cipher, void *ctx, const voi
 	gcm_init_hash_subkey(raw_cipher, ctx, hash_subkey);
 	gcm_create_j0(hash_subkey, iv, iv_len, j0, blocksize);
 
+	printf("J0:\n");
+	for (uint16_t i = 0; i < blocksize; i++)
+	{
+		printf("%x", j0[i]);
+		if ((i + 1) % 4 == 0)
+		{
+			printf(" ");
+		}
+	}
+
+	printf("\n");
+
+	printf("aad_len main: %zd\n", aad_len);
+
 	gcm_inc32(j0, j0_inc, blocksize);
 	gcm_gctr(raw_cipher, ctx, j0_inc, src, len, ciphertext);
 	gcm_create_s(hash_subkey, aad, aad_len, ciphertext, ciphertext_len, s, blocksize);
+	printf("S:\n");
+	for (uint16_t i = 0; i < blocksize; i++)
+	{
+		printf("%x", s[i]);
+		if ((i + 1) % 4 == 0)
+		{
+			printf(" ");
+		}
+	}
+
+	printf("\n");
 	gcm_gctr(raw_cipher, ctx, j0, s, sizeof(s), tag); // tag should be truncated to specified tag size (which may be determined by key)
 
 	/**
@@ -361,15 +472,13 @@ int gcm_decrypt_adk ( struct cipher_algorithm *raw_cipher, void *ctx, const void
 }
 
 void gcm_encrypt ( void *ctx, const void *src, void *dst, size_t len,
-			struct cipher_algorithm *raw_cipher, void *gcm_ctx )
+			struct cipher_algorithm *raw_cipher, void * iv, void * aad, size_t aad_len )
 {
-	struct aes_context * aes = ctx;
-
 	size_t blocksize = raw_cipher->blocksize;
 	
 	assert ( ( len % blocksize ) == 0 );
 
-	gcm_encrypt_aek(raw_cipher, ctx, src, len, dst, gcm_ctx, aes->aad, aes->aad_len, blocksize);
+	gcm_encrypt_aek(raw_cipher, ctx, src, len, dst, iv, aad, aad_len, blocksize);
 	/*while (len)
 	{
 		gcm_encrypt_aek(raw_cipher, ctx, src, len, dst, gcm_ctx, aes->aad, aes->aad_len, blocksize);
@@ -390,14 +499,12 @@ void gcm_encrypt ( void *ctx, const void *src, void *dst, size_t len,
  * @v cbc_ctx		CBC context
  */
 void gcm_decrypt ( void *ctx, const void *src, void *dst, size_t len,
-		   struct cipher_algorithm *raw_cipher, void *gcm_ctx ) {
+		   struct cipher_algorithm *raw_cipher, void * iv, void * aad, size_t aad_len ) {
 	size_t blocksize = raw_cipher->blocksize;
 
 	assert ( ( len % blocksize ) == 0 );
 
-	struct aes_context * context = ctx;
-
-	gcm_decrypt_adk(raw_cipher, ctx, src, len, dst, gcm_ctx, context->aad, context->aad_len, blocksize, src + blocksize);
+	gcm_decrypt_adk(raw_cipher, ctx, src, len, dst, iv, aad, aad_len, blocksize, src + blocksize);
 	/*while ( len ) {
 		gcm_decrypt_adk(raw_cipher, ctx, src, len, dst, gcm_ctx, context->aad, context->aad_len, blocksize, src + blocksize);
 		dst += blocksize;

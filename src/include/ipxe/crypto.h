@@ -69,7 +69,7 @@ struct cipher_algorithm {
 	 */
 	void ( * setiv ) ( void *ctx, const void *iv );
 
-	void ( * setaad ) ( void *ctx, const void *aad );
+	void ( * setaad ) ( void *ctx, const void *aad, size_t aad_len );
 	/** Encrypt data
 	 *
 	 * @v ctx		Context
@@ -199,8 +199,8 @@ static inline void cipher_setiv ( struct cipher_algorithm *cipher,
 }
 
 static inline void cipher_setaad ( struct cipher_algorithm *cipher,
-				  void *ctx, const void *aad ) {
-	cipher->setaad ( ctx, aad );
+				  void *ctx, const void *aad, size_t aad_len ) {
+	cipher->setaad ( ctx, aad, aad_len );
 }
 
 static inline void cipher_encrypt ( struct cipher_algorithm *cipher,
