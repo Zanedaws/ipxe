@@ -105,7 +105,7 @@ struct cipher_gcm_test {
 	static const uint8_t name ## _aad [] = AAD;			\
 	static const uint8_t name ## _plaintext [] = PLAINTEXT;		\
 	static const uint8_t name ## _ciphertext			\
-		[ sizeof ( name ## _plaintext ) ] = CIPHERTEXT;		\
+		[ sizeof ( name ## _plaintext ) + 16 ] = CIPHERTEXT;		\
 	static struct cipher_gcm_test name = {				\
 		.cipher = CIPHER,					\
 		.key = name ## _key,					\
