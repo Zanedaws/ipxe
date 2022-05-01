@@ -40,6 +40,7 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
  *
  */
 
+
 /**
  * XOR data blocks
  *
@@ -77,7 +78,7 @@ static void right_shift(uint8_t * bits, size_t byte_len)
 	uint8_t append_bit = 0;
 	uint8_t floating_bit = 0;
 
-	for (uint16_t i = 0; i < (byte_len); i++)
+	for (uint16_t i = 0; i < byte_len; i++)
 	{	
 		floating_bit = bits[i] & 0x01;
 		bits[i] >>= 1;
@@ -125,14 +126,14 @@ static void gcm_mult( uint8_t * x, uint8_t * y, uint8_t * output, size_t blocksi
 
 	for (uint16_t i = 0; i < blocksize; i++) // By byte
 	{
-		for (int j = 7; j > -1; j--) // By bit
+		for (uint16_t j = 0; j < 8; j++) // By bit
 		{
-			if(get_bit(x[i], j))
+			if(get_bit(x[i], 7 - j))
 			{
 				gcm_xor(y_copy, output, blocksize);
 			}
 
-			if(y_copy[blocksize - 1] & 1)
+			if(y_copy[blocksize - 1] & 0x01)
 			{
 				right_shift(y_copy, blocksize);
 				y_copy[0] ^= 0xe1; // Constant from NIST standards
@@ -155,10 +156,37 @@ static void ghash(uint8_t * hash_subkey, const uint8_t *input, int input_len, ui
 	const uint8_t * input_pos = input;
 	int input_blocks = input_len / blocksize;
 
+	/*printf("GHASH H: ");
+	for(uint16_t i = 0; i < blocksize; i++)
+	{
+		printf("%x", hash_subkey[i]);
+		if ((i + 1) % 4 == 0)
+		{
+			printf(" ");
+		}
+	}
+	printf("\n");
+
+	printf("GHASH Input: ");
+	for(uint16_t i = 0; i < input_len; i++)
+	{
+		printf("%x", input[i]);
+		if ((i + 1) % 4 == 0)
+		{
+			printf(" ");
+		}
+		if (( i + 1) % 16 == 0)
+		{
+			printf("\n");
+		}
+	}
+	printf("\n");*/
+
 	memset(output, 0, blocksize);
 
-	for (int i = 0; i < input_blocks; i++)
+	for (uint16_t i = 0; i < input_blocks; i++)
 	{
+		printf("GHASH i: %d\n", i);
 		gcm_xor(input_pos, output, blocksize);
 		input_pos += blocksize;
 
@@ -168,6 +196,7 @@ static void ghash(uint8_t * hash_subkey, const uint8_t *input, int input_len, ui
 
 	if (input + input_len > input_pos) // checking for leftover data, not full block
 	{
+		printf("Enter extra pad\n");
 		size_t last = input + input_len - input_pos;
 
 		memcpy(temp, input_pos, last);
@@ -209,8 +238,7 @@ static void gcm_create_s(uint8_t * hash_subkey, uint8_t * auth_data, size_t aad_
 	//uint8_t len_buffer[blocksize]; 
 
 	//uint8_t len_buf[blocksize];
-	/*memset(len_buf, 0, blocksize);
-	memset(s, 0, blocksize);
+	/*memset(s, 0, blocksize);
 	ghash(hash_subkey, auth_data, aad_len, s, blocksize);
 	ghash(hash_subkey, ciphertext, ciphertext_len, s, blocksize);
 	uint32_t mask = 0xe0000000;
@@ -227,19 +255,24 @@ static void gcm_create_s(uint8_t * hash_subkey, uint8_t * auth_data, size_t aad_
 	cipher_len_temp[0] = (cipher_len_temp[1] & mask) >> 29;
 	cipher_len_temp[1] <<= 3;
 
-	for(uint16_t i = 0; i < blocksize; i++)
+	uint32_t len_buf[blocksize / 4];
+	memset(len_buf, 0, blocksize);
+
+	len_buf[0] = aad_len_temp[0];
+	len_buf[1] = aad_len_temp[1];
+	len_buf[2] = cipher_len_temp[0];
+	len_buf[3] = cipher_len_temp[1];
+
+	printf("Len buf:\n");
+	for(uint16_t i = 0; i < blocksize / 4; i++)
 	{
-		printf("%x", len_buf[i]);
-		if((i + 1) % 4 == 0)
-		{
-			printf(" ");
-		}
+		printf("%x ", len_buf[i]);
 	}
 	printf("\n");
 	memcpy(len_buf, aad_len_temp, 8);
 	memcpy(len_buf + 8, cipher_len_temp, 8);
 
-	ghash(hash_subkey, len_buf, blocksize, s, blocksize);*/
+	ghash(hash_subkey, (uint8_t *) len_buf, blocksize, s, blocksize);*/
 	// need to check for padding of aad
 	memset(s, 0, blocksize);
 	size_t pad_bytes_aad = 0;
@@ -272,12 +305,51 @@ static void gcm_create_s(uint8_t * hash_subkey, uint8_t * auth_data, size_t aad_
 	cipher_len_temp[0] = (cipher_len_temp[1] & mask) >> 29;
 	cipher_len_temp[1] <<= 3;
 
-	uint32_t len_buf[blocksize / 4];
+	/*uint32_t len_buf[blocksize / 4];
+	// this matches the concat output if uint64s are used
 	len_buf[0] = aad_len_temp[1];
 	len_buf[1] = aad_len_temp[0];
 	len_buf[2] = cipher_len_temp[1];
-	len_buf[3] = cipher_len_temp[0];
-	memcpy(s_temp + location, len_buf, blocksize);
+	len_buf[3] = cipher_len_temp[0];*/
+
+	(s_temp + location)[0] = aad_len_temp[0] >> 24;
+	(s_temp + location)[1] = aad_len_temp[0] >> 16;
+	(s_temp + location)[2] = aad_len_temp[0] >> 8;
+	(s_temp + location)[3] = aad_len_temp[0] & 0xff;
+	(s_temp + location)[4] = aad_len_temp[1] >> 24;
+	(s_temp + location)[5] = aad_len_temp[1] >> 16;
+	(s_temp + location)[6] = aad_len_temp[1] >> 8;
+	(s_temp + location)[7] = aad_len_temp[1] & 0xff;
+
+	(s_temp + location)[8] = cipher_len_temp[0] >> 24;
+	(s_temp + location)[9] = cipher_len_temp[0] >> 16;
+	(s_temp + location)[10] = cipher_len_temp[0] >> 8;
+	(s_temp + location)[11] = cipher_len_temp[0] & 0xff;
+	(s_temp + location)[12] = cipher_len_temp[1] >> 24;
+	(s_temp + location)[13] = cipher_len_temp[1] >> 16;
+	(s_temp + location)[14] = cipher_len_temp[1] >> 8;
+	(s_temp + location)[15] = cipher_len_temp[1] & 0xff;
+	/*uint64_t len_buf[2];
+	len_buf[0] = aad_len * 8;
+	len_buf[1] = ciphertext_len * 8;
+	(s_temp + location)[0] = len_buf[0] >> 56;
+	(s_temp + location)[1] = len_buf[0] >> 48;
+	(s_temp + location)[2] = len_buf[0] >> 40;
+	(s_temp + location)[3] = len_buf[0] >> 32;
+	(s_temp + location)[4] = len_buf[0] >> 24;
+	(s_temp + location)[5] = len_buf[0] >> 16;
+	(s_temp + location)[6] = len_buf[0] >> 8;
+	(s_temp + location)[7] = len_buf[0] & 0xff;
+
+	(s_temp + location)[8] = len_buf[1] >> 56;
+	(s_temp + location)[9] = len_buf[1] >> 48;
+	(s_temp + location)[10] = len_buf[1] >> 40;
+	(s_temp + location)[11] = len_buf[1] >> 32;
+	(s_temp + location)[12] = len_buf[1] >> 24;
+	(s_temp + location)[13] = len_buf[1] >> 16;
+	(s_temp + location)[14] = len_buf[1] >> 8;
+	(s_temp + location)[15] = len_buf[1] & 0xff;*/
+	//memcpy(s_temp + location, len_buf, blocksize);
 
 	/*if (sizeof(size_t) == 64)
 	{
