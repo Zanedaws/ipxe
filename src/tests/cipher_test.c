@@ -74,9 +74,9 @@ void cipher_encrypt_okx ( struct cipher_test *test, const char *file,
 void cipher_gcm_encrypt_okx ( struct cipher_gcm_test *test, const char *file,
 			  unsigned int line ) {
 	struct cipher_algorithm *cipher = test->cipher;
-	size_t len = test->len;
+	size_t len = test->plain_len;
 	uint8_t ctx[cipher->ctxsize];
-	uint8_t ciphertext[len];
+	uint8_t ciphertext[test->cipher_len];
 
 	/* Initialise cipher */
 	okx ( cipher_setkey ( cipher, ctx, test->key, test->key_len ) == 0,
@@ -84,13 +84,15 @@ void cipher_gcm_encrypt_okx ( struct cipher_gcm_test *test, const char *file,
 	cipher_setiv ( cipher, ctx, test->iv );
 	cipher_setaad ( cipher, ctx, test->aad, test->aad_len);
 
+	printf("Plaintext len: %zd | Ciphertext len: %zd\n", sizeof(test->plaintext), sizeof(test->ciphertext));
+
 	/* Perform encryption */
 	cipher_encrypt ( cipher, ctx, test->plaintext, ciphertext, len );
 
 	/* Compare against expected ciphertext */
 
-	printf("Ciphertext: \n");
-	for (uint16_t i = 0; i < len; i++)
+	/*printf("Ciphertext | Len: %zd: \n", len);
+	for (uint16_t i = 0; i < test->cipher_len; i++)
 	{
 		printf("%x", ciphertext[i]);
 		if ((i + 1) % 4 == 0)
@@ -104,7 +106,7 @@ void cipher_gcm_encrypt_okx ( struct cipher_gcm_test *test, const char *file,
 	}
 
 	printf("Expected: \n");
-	for (uint16_t i = 0; i < len; i++)
+	for (uint16_t i = 0; i < test->cipher_len; i++)
 	{
 		printf("%x", ((uint8_t *)test->ciphertext)[i]);
 		if ((i + 1) % 4 == 0)
@@ -115,11 +117,12 @@ void cipher_gcm_encrypt_okx ( struct cipher_gcm_test *test, const char *file,
 		{
 			printf("\n");
 		}
-	}
+	}*/
 
 	printf("memcmp test: %d\n", memcmp ( ciphertext, test->ciphertext, len ));
 
-	okx ( memcmp ( ciphertext, test->ciphertext, len ) == 0, file, line );
+	okx ( memcmp ( ciphertext, test->ciphertext, len ) == 0, file, line ); // Checks block encryption
+	okx ( memcmp ( ciphertext, test->ciphertext, test->cipher_len ) == 0, file, line); // Checks tag
 }
 
 /**
@@ -151,9 +154,9 @@ void cipher_decrypt_okx ( struct cipher_test *test, const char *file,
 void cipher_gcm_decrypt_okx ( struct cipher_gcm_test *test, const char *file,
 			  unsigned int line ) {
 	struct cipher_algorithm *cipher = test->cipher;
-	size_t len = test->len;
+	size_t len = test->plain_len;
 	uint8_t ctx[cipher->ctxsize];
-	uint8_t plaintext[len];
+	uint8_t plaintext[test->plain_len];
 
 	/* Initialise cipher */
 	okx ( cipher_setkey ( cipher, ctx, test->key, test->key_len ) == 0,

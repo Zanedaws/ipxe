@@ -50,10 +50,11 @@ struct cipher_gcm_test {
 	size_t aad_len;
 	/** Plaintext */
 	const void *plaintext;
+	size_t plain_len;
 	/** Ciphertext */
 	const void *ciphertext;
-	/** Length of text */
-	size_t len;
+
+	size_t cipher_len;
 };
 
 /** Define inline key */
@@ -113,8 +114,9 @@ struct cipher_gcm_test {
 		.iv = name ## _iv,					\
 		.iv_len = sizeof ( name ## _iv ),			\
 		.plaintext = name ## _plaintext,			\
+		.plain_len = sizeof ( name ## _plaintext),	\
 		.ciphertext = name ## _ciphertext,			\
-		.len = sizeof ( name ## _plaintext ) + 16,			\
+		.cipher_len = sizeof ( name ## _ciphertext ),			\
 		.aad = name ## _aad,					\
 		.aad_len = sizeof ( name ## _aad ),			\
 	}

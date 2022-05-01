@@ -224,7 +224,6 @@ static void aes_test_exec ( void ) {
 	cipher_ok ( &aes_192_cbc );
 	cipher_ok ( &aes_256_ecb );
 	cipher_ok ( &aes_256_cbc );
-	printf("Before gcm test\n");
 	cipher_gcm_ok ( &aes_256_gcm );
 
 	/* Speed tests */
